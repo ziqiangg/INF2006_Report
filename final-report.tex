@@ -1,0 +1,138 @@
+    \documentclass[11pt,twoside,a4paper]{article}
+
+\newcommand{\reporttitle}{Algorithmic Trading Strategy Development and Optimisation}
+\newcommand{\gid}{X}
+\newcommand{\reportauthorOne}{Guo Zi Qiang Robin}
+\newcommand{\cidOne}{2400989}
+\newcommand{\reportauthorTwo}{Tan Zi Xu}
+\newcommand{\cidTwo}{2400964}
+\newcommand{\reportauthorThree}{Cai Wenjing}
+\newcommand{\cidThree}{2401497}
+\newcommand{\reportauthorFour}{Student 4}
+\newcommand{\cidFour}{your id number}
+\newcommand{\reportauthorFive}{Student 5}
+\newcommand{\cidFive}{your id number}
+\newcommand{\reportauthorSix}{Student 6}
+\newcommand{\cidSix}{your id number}
+
+
+\newcommand{\reporttype}{Group Project Assignment 2}
+\bibliographystyle{plain}
+
+% include files that load packages and define macros
+\input{includes} % various packages needed for maths etc.
+\input{notation} % short-hand notation and macros
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+% front page
+\input{titlepage}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%% table of content
+%If a table of content is needed, simply uncomment the following lines
+%\tableofcontents
+%\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%% Main document
+\section*{Note}
+\emph{This report should comprehensively document your development process and findings for the algorithmic trading strategy project. The report must be 15 ± 5 pages (excluding references and appendices) and the suggested structure is as follows:}
+
+\section{Introduction}
+\begin{itemize}
+    \item \emph{\textbf{Project Overview:} Briefly describe the algorithmic trading strategy project, including the objective to enhance the baseline strategy using S\&P 500 historical market data and earnings call transcripts.}
+
+This project focuses on developing and enhancing an algorithmic trading strategy by leveraging S\&P 500 historical market data and earnings call transcripts. The core objective is to build upon a baseline trading strategy, integrating quantitative technical indicators with qualitative insights derived from natural language processing (NLP) of corporate earnings communications. By analyzing price movements, trading volumes, and sentiment from transcripts, the project aims to create a more robust and predictive trading model that can generate profitable signals in the dynamic stock market environment. 
+    \item \emph{\textbf{Motivation and Background:} Explain the significance of algorithmic trading strategies in modern finance and how big data analytics and natural language processing can provide valuable insights.}
+
+Algorithmic trading strategies have revolutionized modern finance by enabling high-speed, data-driven decision-making that minimizes human bias and emotional influences. In an era where markets operate 24/7 and process vast amounts of data in real-time, these strategies provide a competitive edge through automation and precision. Big data analytics plays a crucial role by processing large-scale historical datasets to identify patterns and trends that traditional methods might overlook. Complementing this,  NLP extracts valuable insights from unstructured text data, such as earnings call transcripts, which often contain forward-looking statements, risk disclosures, and market sentiment indicators. Together, these technologies allow traders to incorporate both quantitative metrics (e.g., price volatility, volume spikes) and qualitative factors (e.g., management confidence, economic outlook) into their strategies, leading to more informed and adaptive trading decisions. 
+    \item \emph{\textbf{Objectives:} Clearly state the goals of the project, including specific improvements targeted over the baseline strategy.}
+
+The primary goals of this project are to systematically improve upon a baseline algorithmic trading strategy through iterative development and evaluation. 
+
+Specific objectives include: 
+    \item (1) implementing and optimizing technical indicators such as moving averages, RSI, MACD, and Bollinger Bands for signal generation; 
+    \item (2) applying NLP techniques, including FinBERT-based sentiment analysis, to earnings transcripts for enhanced predictive power; 
+    \item (3) exploring scalable computing methods to handle large datasets efficiently, reducing computational latency; 
+    \item (4) conducting rigorous performance evaluation using proper train/validation splits to ensure model generalization; and 
+    \item (5) achieving measurable improvements in key metrics such as Sharpe ratio, maximum drawdown, and cumulative returns compared to the baseline approach. 
+
+Through this process, the project seeks to demonstrate the practical value of integrating big data analytics and NLP in algorithmic trading. 
+\end{itemize}
+
+\section{Enhanced Exploratory Data Analysis (EDA)}
+\begin{itemize}
+    \item \emph{\textbf{Extended Analysis:} Present deeper insights beyond the baseline EDA. Analyze patterns, distributions, anomalies, and coverage across the datasets.}
+    \item \emph{\textbf{Key Findings and Implications:} Summarize the most important insights discovered and explain how they informed subsequent strategy design decisions and hypothesis formation.}
+\end{itemize}
+
+\section{Data Cleaning and Preparation}
+\begin{itemize}
+    \item \emph{Document any data quality issues identified and the steps taken to address them (e.g., handling missing values, outliers, or erroneous observations).}
+\end{itemize}
+
+\section{Computational Efficiency and Performance Optimization}
+\begin{itemize}
+    \item \emph{\textbf{Scalability Challenges:} Describe computational challenges encountered when processing price records.}
+    \item \emph{\textbf{Optimization Strategies:} Document specific techniques implemented (e.g., vectorization, parallelization, memory optimization).}
+    \item \emph{\textbf{Performance Measurements:} Present quantitative evidence of efficiency improvements (runtime comparisons, memory usage).}
+\end{itemize}
+
+\section{Strategy Enhancement Methodology}
+\begin{itemize}
+    \item \emph{\textbf{Technical Indicators and Features:} Describe additional indicators implemented beyond the baseline's 50-day moving average. Justify indicator selection and parameter tuning approach. Explain how multiple indicators were combined for signal generation.}
+    \item \emph{\textbf{Earnings Transcript Analysis:} Detail improvements to earnings transcript processing using FinBERT. Explain how confidence scores were utilized and neutral sentiment handled. Describe any multi-quarter sentiment pattern analysis implemented.}
+    \item \emph{\textbf{Entry, Exit, and Risk Management Rules:} Present refined entry conditions and signal confirmation requirements. Describe exit strategy improvements (stop-loss refinements, profit targets). Explain position sizing methodology and concentration risk management.}
+\end{itemize}
+
+\section{Experimental Results and Analysis}
+\begin{itemize}
+    \item \emph{\textbf{Development Phase Experiments:} Document the systematic experimentation process, including all major experiments conducted on the development dataset. Present hypotheses tested, methodology used, and results obtained for each experiment. Detail hyperparameter exploration (indicator windows, thresholds, sentiment confidence levels). Compare enhanced strategy performance against baseline on development data.}
+    \item \emph{\textbf{Validation Phase Results:} Present performance metrics on the validation dataset (2018–2024). Analyze generalization capability and differences from development set performance. Discuss any adjustments made based on validation results (if applicable).}
+\end{itemize}
+
+\section{Final Performance Outcomes}
+\begin{itemize}
+    \item \emph{\textbf{Comprehensive Metrics:} Report all five performance metrics (Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, Volatility) across Development, Validation, and Test datasets.}
+    \item \emph{\textbf{Comparative Analysis:} Present detailed comparison between enhanced strategy and baseline across all datasets.}
+    \item \emph{\textbf{Performance Visualization:} Include portfolio value charts, drawdown analysis, and other relevant visualizations.}
+\end{itemize}
+
+\section{Related Work}
+\begin{itemize}
+    \item \emph{Briefly review and cite relevant technical work, research papers, or methodologies that informed your approach. This may include studies on technical indicators, sentiment analysis in finance, algorithmic trading strategies, or performance optimization techniques. Explain how these works influenced your strategy design and implementation decisions.}
+\end{itemize}
+
+\section{Conclusion and Future Work}
+\subsection{Conclusion}
+\begin{itemize}
+    \item \emph{Summarize the key achievements and insights from the project.}
+    % \item \emph{Discuss potential future directions, such as scaling, applying additional techniques, or extending to new datasets.}
+\end{itemize}
+
+\subsection{Future Work}
+\begin{itemize}
+    \item \emph{\textbf{Limitations:} Acknowledge limitations of the approach, including assumptions and constraints.}
+    \item \emph{\textbf{Challenges Encountered:} Discuss technical and analytical challenges faced and how they were addressed.}
+    \item \emph{\textbf{Future Work:} Discuss potential extension for the current work to address the limitations and challenges.}
+\end{itemize}
+
+\vfill
+\newpage
+\bibliography{mybib}
+\vfill
+\newpage
+\section*{Appendices}
+\begin{itemize}
+    \item \emph{\textbf{Individual Contributions:} Detail each team member's specific contributions to the project.}
+    \item \emph{\textbf{Declaration of Use of Generative AI Tools:} List all generative AI tools and resources used, like ChatGPT or Copilot, and acknowledge any external support received.}
+\end{itemize}
+
+
+\end{document}
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

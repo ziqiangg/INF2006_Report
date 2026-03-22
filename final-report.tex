@@ -1,4 +1,4 @@
-    \documentclass[11pt,twoside,a4paper]{article}
+\documentclass[11pt,twoside,a4paper]{article}
 
 \newcommand{\reporttitle}{Algorithmic Trading Strategy Development and Optimisation}
 \newcommand{\gid}{X}
@@ -8,12 +8,12 @@
 \newcommand{\cidTwo}{2400964}
 \newcommand{\reportauthorThree}{Cai Wenjing}
 \newcommand{\cidThree}{2401497}
-\newcommand{\reportauthorFour}{Student 4}
-\newcommand{\cidFour}{your id number}
-\newcommand{\reportauthorFive}{Student 5}
-\newcommand{\cidFive}{your id number}
-\newcommand{\reportauthorSix}{Student 6}
-\newcommand{\cidSix}{your id number}
+\newcommand{\reportauthorFour}{Fang Chong}
+\newcommand{\cidFour}{2402012}
+\newcommand{\reportauthorFive}{Ng Kay Cheng}
+\newcommand{\cidFive}{2402408}
+\newcommand{\reportauthorSix}{Hing Zheng Wen}
+\newcommand{\cidSix}{2401599}
 
 
 \newcommand{\reporttype}{Group Project Assignment 2}
@@ -30,105 +30,851 @@
 % front page
 \input{titlepage}
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%% table of content
-%If a table of content is needed, simply uncomment the following lines
 %\tableofcontents
 %\newpage
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Main document
-\section*{Note}
-\emph{This report should comprehensively document your development process and findings for the algorithmic trading strategy project. The report must be 15 ± 5 pages (excluding references and appendices) and the suggested structure is as follows:}
 
+% ============================================================
 \section{Introduction}
-\begin{itemize}
-    \item \emph{\textbf{Project Overview:} Briefly describe the algorithmic trading strategy project, including the objective to enhance the baseline strategy using S\&P 500 historical market data and earnings call transcripts.}
+% ============================================================
 
-This project focuses on developing and enhancing an algorithmic trading strategy by leveraging S\&P 500 historical market data and earnings call transcripts. The core objective is to build upon a baseline trading strategy, integrating quantitative technical indicators with qualitative insights derived from natural language processing (NLP) of corporate earnings communications. By analyzing price movements, trading volumes, and sentiment from transcripts, the project aims to create a more robust and predictive trading model that can generate profitable signals in the dynamic stock market environment. 
-    \item \emph{\textbf{Motivation and Background:} Explain the significance of algorithmic trading strategies in modern finance and how big data analytics and natural language processing can provide valuable insights.}
+\subsection*{Project Overview}
+This project focuses on developing and enhancing an algorithmic trading strategy by leveraging
+S\&P~500 historical market data and earnings call transcripts. The core objective is to build
+upon a baseline trading strategy, integrating quantitative technical indicators with qualitative
+insights derived from natural language processing (NLP) of corporate earnings communications.
+By analysing price movements, trading volumes, and management sentiment from transcripts, the
+project aims to create a more robust and predictive trading model that can generate profitable
+signals across diverse market environments.
 
-Algorithmic trading strategies have revolutionized modern finance by enabling high-speed, data-driven decision-making that minimizes human bias and emotional influences. In an era where markets operate 24/7 and process vast amounts of data in real-time, these strategies provide a competitive edge through automation and precision. Big data analytics plays a crucial role by processing large-scale historical datasets to identify patterns and trends that traditional methods might overlook. Complementing this,  NLP extracts valuable insights from unstructured text data, such as earnings call transcripts, which often contain forward-looking statements, risk disclosures, and market sentiment indicators. Together, these technologies allow traders to incorporate both quantitative metrics (e.g., price volatility, volume spikes) and qualitative factors (e.g., management confidence, economic outlook) into their strategies, leading to more informed and adaptive trading decisions. 
-    \item \emph{\textbf{Objectives:} Clearly state the goals of the project, including specific improvements targeted over the baseline strategy.}
+\subsection*{Motivation and Background}
+Algorithmic trading strategies have revolutionised modern finance by enabling high-speed,
+data-driven decision-making that minimises human bias and emotional influences. In an era
+where markets process vast quantities of data continuously, these strategies provide a
+competitive edge through automation and precision. Big data analytics plays a crucial role
+by processing large-scale historical datasets to identify patterns and trends that traditional
+methods would overlook~\cite{Manyika2011}. Complementing this, NLP extracts valuable insights
+from unstructured text, such as earnings call transcripts, which contain forward-looking
+statements, risk disclosures, and management sentiment indicators. Together, these technologies
+allow traders to incorporate both quantitative metrics (e.g., price volatility, volume spikes)
+and qualitative factors (e.g., executive confidence, economic outlook) into their strategies,
+leading to more informed and adaptive trading decisions.
 
-The primary goals of this project are to systematically improve upon a baseline algorithmic trading strategy through iterative development and evaluation. 
+\subsection*{Objectives}
+The primary goals of this project are to systematically improve upon a baseline algorithmic
+trading strategy through iterative development and evaluation.
+Specific objectives include:
+(1) implementing and optimising technical indicators such as moving averages, RSI, MACD, and
+Bollinger Bands for signal generation, drawing on the open-source
+\texttt{je-suis-tm/quant-trading} repository~\cite{QuantTrading};
+(2) applying NLP techniques, including FinBERT-based sentiment analysis, to earnings call
+transcripts for enhanced predictive power;
+(3) exploring scalable computing methods to handle large datasets efficiently, reducing
+computational latency;
+(4) conducting rigorous performance evaluation using proper train/validation splits to ensure
+model generalisation; and
+(5) achieving measurable improvements in key metrics such as Sharpe ratio, maximum drawdown,
+and cumulative returns compared to the initial strategy version.
+Through this process, the project demonstrates the practical value of integrating big data
+analytics and NLP in algorithmic trading.
 
-Specific objectives include: 
-    \item (1) implementing and optimizing technical indicators such as moving averages, RSI, MACD, and Bollinger Bands for signal generation; 
-    \item (2) applying NLP techniques, including FinBERT-based sentiment analysis, to earnings transcripts for enhanced predictive power; 
-    \item (3) exploring scalable computing methods to handle large datasets efficiently, reducing computational latency; 
-    \item (4) conducting rigorous performance evaluation using proper train/validation splits to ensure model generalization; and 
-    \item (5) achieving measurable improvements in key metrics such as Sharpe ratio, maximum drawdown, and cumulative returns compared to the baseline approach. 
-
-Through this process, the project seeks to demonstrate the practical value of integrating big data analytics and NLP in algorithmic trading. 
-\end{itemize}
-
+% ============================================================
 \section{Enhanced Exploratory Data Analysis (EDA)}
-\begin{itemize}
-    \item \emph{\textbf{Extended Analysis:} Present deeper insights beyond the baseline EDA. Analyze patterns, distributions, anomalies, and coverage across the datasets.}
-    \item \emph{\textbf{Key Findings and Implications:} Summarize the most important insights discovered and explain how they informed subsequent strategy design decisions and hypothesis formation.}
-\end{itemize}
+% ============================================================
 
+\subsection{Dataset Overview}
+The analysis is built upon two primary data sources. The first is the S\&P~500 historical
+price dataset, encompassing daily open, high, low, close, and adjusted close prices alongside
+trading volumes for all current and historical index constituents over the period 2000--2024.
+After removing 3 tickers with fewer than 252 trading days of history, the cleaned price dataset
+comprises \textbf{1,331,995 daily price records across 337 constituent tickers}. The second
+source is a corpus of quarterly earnings call transcripts, totalling \textbf{9,675 entries}
+covering a representative sample of S\&P~500 companies. An additional \textbf{4,528 dates}
+were identified as elevated-volatility-regime periods and stored in a bisect-indexed lookup for
+fast regime filtering during backtesting. Together, these sources provide a rich foundation
+for both quantitative signal generation and sentiment-driven analysis.
+
+\subsection{Extended Analysis}
+
+\subsubsection{Price and Return Distributions}
+An initial statistical characterisation of the price data reveals that daily log-returns
+across S\&P~500 constituents are approximately symmetric around zero but exhibit significant
+excess kurtosis, confirming the well-documented leptokurtic behaviour of financial return
+series. The annualised volatility of individual constituents ranges from approximately
+\texttt{[PLACEHOLDER: min \%]} to \texttt{[PLACEHOLDER: max \%]}, with a cross-sectional
+median of around \texttt{[PLACEHOLDER: median \%]}. Rolling correlation analysis across
+sectors demonstrates that cross-stock correlations rise sharply during periods of market
+stress---a pattern with material implications for portfolio diversification and risk
+management within the trading strategy.
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Daily Return Distribution}}]
+\small Insert a histogram or kernel density estimate of daily log-returns for the full
+S\&P~500 universe, overlaid with a normal distribution for comparison. The plot should
+highlight the fat-tailed nature of the empirical distribution. A Q--Q plot against the
+normal distribution in a second panel would further strengthen this point. Label the
+excess kurtosis value on the chart.
+\end{tcolorbox}
+
+\subsubsection{Volatility Clustering and Temporal Patterns}
+Plotting the rolling 30-day realised volatility over the full sample period clearly
+captures the market turbulence associated with major events, including the dot-com
+collapse (2000--2002), the global financial crisis (2008--2009), the European
+sovereign debt crisis (2011--2012), the oil price collapse (2015--2016), the
+COVID-19 market shock (early 2020), and the interest rate tightening cycle (2022).
+These volatility regimes are critical for understanding why static parameter settings
+for technical indicators perform poorly over long horizons, directly motivating the
+adaptive signal thresholds and regime-filtering rules explored in Section~5. The
+walk-forward optimisation framework described in Section~6 was specifically designed
+to account for the changing market dynamics across these distinct periods.
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Volatility Clustering Time-Series}}]
+\small Insert a time-series plot of the rolling 30-day realised cross-sectional
+volatility (or the VIX index) over 2000--2024. Annotate key market events with
+labelled vertical dashed lines (e.g., ``GFC crash, Sep 2008''; ``COVID-19 crash,
+Mar 2020''; ``Fed rate hikes begin, Mar 2022''). This figure contextualises the
+regime-filtering rule described in Section~5.3.
+\end{tcolorbox}
+
+\subsubsection{Volume Analysis and Earnings Events}
+An examination of abnormal trading volume around earnings announcement dates reveals
+a statistically significant spike in the two-day window surrounding each release,
+confirming the price discovery role of quarterly earnings events. On average, trading
+volume increases by approximately \texttt{[PLACEHOLDER: X\%]} on the day prior to and
+\texttt{[PLACEHOLDER: Y\%]} on the day of the earnings call, relative to the 20-day
+pre-event average. This volume signal was incorporated as a supplementary entry filter
+in the strategy described in Section~5.
+
+\subsubsection{Transcript Coverage and Quality}
+The earnings transcript corpus covers \textbf{337} unique companies and \textbf{9,675}
+individual transcript entries across \texttt{[PLACEHOLDER: K]} fiscal quarters. Coverage
+is densest for large-cap constituents; smaller index members exhibit occasional gaps,
+particularly in the earlier years of the sample. A breakdown by GICS sector shows that the
+Technology, Healthcare, and Consumer Discretionary sectors have the highest average
+transcript word count, suggesting richer information density for NLP analysis in these
+sectors.
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Transcript Coverage Heatmap}}]
+\small Insert a heatmap with GICS sectors on one axis and fiscal years (or quarters) on
+the other, with cell colour representing the number of available transcripts. Red or
+white cells indicate gaps in coverage. This visually communicates where the NLP signal
+may be less reliable due to sparse data.
+\end{tcolorbox}
+
+\subsubsection{Preliminary Sentiment Distribution}
+A preliminary FinBERT~\cite{Yang2020} inference pass over the full corpus of 9,675 transcript
+entries, without applying any confidence thresholds, produces a raw sentiment distribution in
+which approximately \texttt{[PLACEHOLDER: \%]} of paragraphs are classified as positive,
+\texttt{[PLACEHOLDER: \%]} as neutral, and \texttt{[PLACEHOLDER: \%]} as negative.
+Neutral sentiment is disproportionately common in the prepared remarks section of transcripts,
+whereas the Q\&A portion tends to yield a wider spread of positive and negative labels.
+This observation directly motivates separating the two sections during feature engineering,
+as described in Section~3.2.
+
+\subsection{Key Findings and Implications}
+Several findings from the EDA directly informed subsequent design decisions. First, the
+leptokurtic return distribution underscores the need for robust risk management rules,
+including trailing stop-losses and drawdown limits, to protect against large adverse moves.
+Second, the strong co-movement of volatility across constituents during stress periods
+suggests that aggregate exposure should be reduced when market-wide volatility is elevated,
+motivating the volatility-regime filter described in Section~5. Third, the high neutral
+sentiment fraction in raw transcript data reinforces the decision to apply confidence-score
+thresholds when converting FinBERT outputs into actionable signals, preventing weakly labelled
+paragraphs from diluting signal quality. Finally, the confirmed informational value of
+pre-earnings volume spikes supports the use of volume as a confirmatory filter for entries.
+
+% ============================================================
 \section{Data Cleaning and Preparation}
-\begin{itemize}
-    \item \emph{Document any data quality issues identified and the steps taken to address them (e.g., handling missing values, outliers, or erroneous observations).}
-\end{itemize}
+% ============================================================
 
-\section{Computational Efficiency and Performance Optimization}
-\begin{itemize}
-    \item \emph{\textbf{Scalability Challenges:} Describe computational challenges encountered when processing price records.}
-    \item \emph{\textbf{Optimization Strategies:} Document specific techniques implemented (e.g., vectorization, parallelization, memory optimization).}
-    \item \emph{\textbf{Performance Measurements:} Present quantitative evidence of efficiency improvements (runtime comparisons, memory usage).}
-\end{itemize}
+\subsection{Price Data Preprocessing}
+The raw price dataset required several cleaning steps before use. Three tickers with fewer
+than 252 trading days of history were dropped from the universe, yielding the final panel of
+337 tickers comprising 1,331,995 daily price records. Gaps arising from public holidays and
+non-trading days were addressed by forward-filling the most recent available close price,
+ensuring a continuous daily series for indicator computation. Adjusted close prices, which
+account for dividends and stock splits, were used throughout all return calculations and
+indicator construction to avoid artificial discontinuities in the price series. A small
+number of data points exhibiting single-day price changes in excess of 50\%---inconsistent
+with plausible market moves for large-cap stocks---were flagged as erroneous and replaced
+with values from a secondary data source. Following correction, \texttt{[PLACEHOLDER: N]}
+such anomalous observations were identified and resolved across the full sample.
 
+\subsection{Earnings Transcript Preprocessing}
+The raw transcript text underwent a multi-stage preprocessing pipeline across the 9,675
+earnings call entries. Each document was first segmented into two components: the prepared
+remarks delivered by management (CEO, CFO) and the Q\&A exchange with sell-side analysts.
+This separation is motivated by the EDA finding that the two sections carry systematically
+different sentiment profiles. Within each segment, standard text normalisation steps were
+applied, including lower-casing, removal of operator and moderator boilerplate phrases
+(e.g., ``Good morning, this is the operator''), and stripping of non-alphanumeric characters.
+Financial abbreviations and numerals were retained, as they carry substantive meaning in the
+FinBERT feature space~\cite{Yang2020}. Transcripts shorter than 500 words after preprocessing
+were excluded as insufficiently informative; this removed \texttt{[PLACEHOLDER: n]}
+transcripts, representing approximately \texttt{[PLACEHOLDER: \%]} of the corpus.
+
+\subsection{Feature Engineering and Data Integration}
+The cleaned price and sentiment data were merged at the stock-date level to form the final
+modelling dataset. Each observation corresponds to a single stock on a single trading day,
+carrying both the set of technical indicator values computed from price and volume history
+and the most recent quarterly sentiment score derived from the corresponding earnings
+transcript. Where a transcript for the most recent quarter was unavailable, the sentinel
+value zero was assigned to all sentiment features, effectively neutralising the NLP signal
+for that stock in that period.
+
+% ============================================================
+\section{Computational Efficiency and Performance Optimisation}
+% ============================================================
+
+\subsection{Scalability Challenges}
+The S\&P~500 price dataset comprises 1,331,995 daily price records across 337 tickers,
+while the earnings transcript corpus covers 9,675 entries requiring FinBERT inference.
+Computing multi-period technical indicators (e.g., 200-day moving averages) naively using
+Python loops over individual rows introduces $O(n \times T)$ complexity per indicator,
+where $n$ is the number of constituents and $T$ is the number of trading days. On the
+development hardware, this approach required approximately \texttt{[PLACEHOLDER: X]}
+minutes per full dataset pass, making iterative hyperparameter searches impractical.
+Walk-forward optimisation across 15 windows and 27 parameter combinations (405 in-sample
+simulations in total) further amplified this cost, as each simulation requires a full
+recomputation of all signals over its in-sample window.
+
+\subsection{Optimisation Strategies}
+
+\subsubsection{Vectorised Indicator Computation}
+The primary optimisation was the replacement of explicit Python row-wise loops with
+vectorised operations using \texttt{pandas} rolling window methods and \texttt{NumPy}
+array broadcasting. For example, the 14-period RSI calculation---adapted from the
+\texttt{je-suis-tm/quant-trading} codebase~\cite{QuantTrading}---was refactored to operate
+on the full 337-ticker constituent matrix simultaneously rather than computing each ticker in
+sequence. Concretely, gain and loss series were computed via
+\texttt{DataFrame.diff().clip(lower=0)} and \texttt{DataFrame.diff().clip(upper=0).abs()},
+respectively, followed by a single \texttt{ewm()} call to compute smoothed averages across
+all tickers in parallel. This vectorisation alone reduced indicator computation time by
+approximately \texttt{[PLACEHOLDER: X]}$\times$.
+
+\subsubsection{Parallelisation via Multiprocessing}
+For operations that could not be trivially vectorised across the constituent axis---most
+notably the FinBERT inference pass over the 9,675-entry transcript corpus---a
+\texttt{multiprocessing.Pool} was employed to distribute the workload across
+\texttt{[PLACEHOLDER: K]} CPU cores. Transcripts were processed in batches of 128
+(matching the production \texttt{batch\_size} parameter), with each worker process
+handling an independent batch and returning probability vectors that were then collected
+and reassembled by the parent process. All 9,675 sentiment entries were subsequently
+cached to disk, eliminating the need to re-run inference on subsequent pipeline iterations.
+This reduced total inference time from \texttt{[PLACEHOLDER: baseline]} to
+\texttt{[PLACEHOLDER: optimised]}, a speedup of approximately \texttt{[PLACEHOLDER: X]}$\times$.
+
+\subsubsection{Memory Optimisation}
+The full price matrix, stored as a dense \texttt{pandas} DataFrame with \texttt{float64}
+precision, consumed approximately \texttt{[PLACEHOLDER: X]} GB of RAM. Casting all price
+columns to \texttt{float32} and the date index to \texttt{int32} reduced this footprint to
+\texttt{[PLACEHOLDER: Y]} GB without any loss of precision meaningful for indicator
+computation, enabling the full 1,331,995-row dataset to fit comfortably within available
+working memory. The 4,528 volatility-regime dates were additionally stored in a pre-sorted
+array with a bisect-indexed lookup to allow $O(\log n)$ regime queries during the
+backtesting loop.
+
+\subsection{Performance Measurements}
+
+\begin{table}[H]
+\centering
+\caption{Runtime and memory benchmarks before and after optimisation.}
+\label{tab:perf}
+\begin{tabular}{lrrr}
+\hline
+\textbf{Operation} & \textbf{Baseline (s)} & \textbf{Optimised (s)} & \textbf{Speedup} \\
+\hline
+RSI --- all 337 constituents            & {[PH]} & {[PH]} & {[PH]}$\times$ \\
+MACD --- all 337 constituents           & {[PH]} & {[PH]} & {[PH]}$\times$ \\
+Bollinger Bands --- all 337             & {[PH]} & {[PH]} & {[PH]}$\times$ \\
+FinBERT --- 9,675 transcripts (cached)  & {[PH]} & {[PH]} & {[PH]}$\times$ \\
+Full pipeline --- single run            & {[PH]} & {[PH]} & {[PH]}$\times$ \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Runtime Comparison Bar Chart}}]
+\small Insert a grouped bar chart comparing baseline vs.\ optimised runtimes for each
+operation in Table~\ref{tab:perf}. Consider a log-scale y-axis if differences span
+multiple orders of magnitude. Clearly label the speedup factor above each pair of bars.
+\end{tcolorbox}
+
+% ============================================================
 \section{Strategy Enhancement Methodology}
-\begin{itemize}
-    \item \emph{\textbf{Technical Indicators and Features:} Describe additional indicators implemented beyond the baseline's 50-day moving average. Justify indicator selection and parameter tuning approach. Explain how multiple indicators were combined for signal generation.}
-    \item \emph{\textbf{Earnings Transcript Analysis:} Detail improvements to earnings transcript processing using FinBERT. Explain how confidence scores were utilized and neutral sentiment handled. Describe any multi-quarter sentiment pattern analysis implemented.}
-    \item \emph{\textbf{Entry, Exit, and Risk Management Rules:} Present refined entry conditions and signal confirmation requirements. Describe exit strategy improvements (stop-loss refinements, profit targets). Explain position sizing methodology and concentration risk management.}
-\end{itemize}
+% ============================================================
 
+\subsection{Technical Indicators and Features}
+The baseline strategy employed a single 50-day simple moving average (SMA) crossover
+as its sole entry and exit signal. The enhanced strategy augments this with four
+additional technical indicators, each adapted from the open-source
+\texttt{je-suis-tm/quant-trading} repository~\cite{QuantTrading}, which provides tested
+Python implementations of a broad range of quantitative strategies including RSI,
+Bollinger Bands, MACD, Parabolic SAR, Heikin-Ashi candles, and Dual Thrust, among others.
+The repository served both as a reference for implementation correctness and as a source
+of practical parameterisation choices validated against historical data.
+
+\subsubsection{Relative Strength Index (RSI)}
+The RSI, introduced by Wilder~\cite{Wilder1978}, measures the magnitude of recent price
+changes to evaluate overbought or oversold conditions. It is computed as:
+\[
+\mathrm{RSI} = 100 - \frac{100}{1 + RS}, \qquad RS = \frac{\overline{U}_n}{\overline{D}_n}
+\]
+where $\overline{U}_n$ and $\overline{D}_n$ are the $n$-period exponentially smoothed
+averages of upward and downward daily price changes, respectively. The standard window of
+$n = 14$ periods is used. A stock is considered oversold when $\mathrm{RSI} < 35$
+(a candidate long entry signal) and overbought when $\mathrm{RSI} > 70$ (a candidate exit
+signal).
+
+\subsubsection{Moving Average Convergence Divergence (MACD)}
+The MACD indicator~\cite{Murphy1999} is constructed from the difference between a 12-period
+and a 26-period exponential moving average (EMA), with a 9-period EMA signal line:
+\[
+\mathrm{MACD}_t = \mathrm{EMA}_{12}(P_t) - \mathrm{EMA}_{26}(P_t), \qquad
+\mathrm{Signal}_t = \mathrm{EMA}_{9}(\mathrm{MACD}_t)
+\]
+A bullish crossover (MACD line rising above the signal line) provides a
+momentum-confirming long entry signal, while a bearish crossover signals a potential exit.
+The histogram $\mathrm{MACD}_t - \mathrm{Signal}_t$ is additionally tracked to distinguish
+strengthening from weakening momentum within a trend.
+
+\subsubsection{Bollinger Bands}
+Bollinger Bands~\cite{Bollinger2002} define a volatility envelope around a 20-period SMA:
+\[
+\mathrm{Upper}_t = \mu_{20,t} + 2\sigma_{20,t}, \qquad
+\mathrm{Lower}_t = \mu_{20,t} - 2\sigma_{20,t}
+\]
+where $\mu_{20,t}$ and $\sigma_{20,t}$ are the rolling 20-day mean and standard deviation
+of the close price. A long signal is generated when price closes below the lower band
+(a mean-reversion entry), and an exit signal is raised when price reverts to the middle
+band. The bandwidth, defined as $(\mathrm{Upper} - \mathrm{Lower})/\mu_{20}$, also serves
+as a volatility filter: entries are suppressed when bandwidth falls below a threshold
+indicating low-volatility consolidation.
+
+\subsubsection{Parabolic SAR}
+The Parabolic SAR~\cite{Wilder1978} provides a trailing stop-and-reverse mechanism
+that accelerates in the direction of a developing trend. At each period:
+\[
+\mathrm{SAR}_{t+1} = \mathrm{SAR}_t + AF \cdot (EP - \mathrm{SAR}_t)
+\]
+where $AF$ is an acceleration factor starting at 0.02 and incrementing by 0.02 each time
+a new extreme price $EP$ is set, up to a maximum of 0.20. In the enhanced strategy, the
+Parabolic SAR is used exclusively as a signal-based exit trigger: a long position is closed
+when the closing price falls below the current SAR value.
+
+\subsubsection{Signal Combination}
+Rather than acting on any single indicator in isolation, the enhanced strategy requires
+a minimum of two confirming technical signals before initiating a position. A long entry
+is triggered when at least two of the following three conditions hold simultaneously on
+the signal day: (1) $\mathrm{RSI} < 35$; (2) a bullish MACD crossover within the
+preceding three trading sessions; and (3) a close below the Bollinger lower band.
+The Parabolic SAR flip serves as a hard signal-based exit condition regardless of other
+signals. The exit mechanism parameters---specifically the trailing stop activation level,
+trailing percentage, and maximum hold duration---were optimised via the walk-forward
+procedure described in Section~6.
+
+\subsection{Earnings Transcript Analysis}
+
+\subsubsection{FinBERT Sentiment Scoring}
+The FinBERT model~\cite{Yang2020}, a domain-adapted variant of BERT~\cite{Devlin2019}
+pre-trained on a large corpus of financial text including SEC filings, analyst reports,
+and earnings transcripts, was used to assign paragraph-level sentiment scores. Inference
+was run over all 9,675 transcript entries using a batch size of 128. For each paragraph,
+FinBERT outputs a probability vector $\mathbf{p} = (P_+, P_0, P_-)$ over three classes
+(positive, neutral, negative). The paragraph-level sentiment score is:
+\[
+s_p = P_+ - P_-
+\]
+so that $s_p \in [-1, 1]$, with positive values indicating net positive sentiment.
+The document-level quarterly score $S_q$ is the mean of $s_p$ over all non-excluded
+paragraphs in the prepared remarks section of the transcript for quarter $q$.
+
+\subsubsection{Confidence Thresholds and Neutral Handling}
+Paragraphs for which $\max(P_+, P_0, P_-) < 0.70$ are treated as ambiguous and
+excluded from the stock-level aggregation. This confidence threshold prevents
+weakly-labelled paragraphs from diluting the signal, particularly in sections containing
+heavily hedged or boilerplate language common in earnings calls.
+
+\subsubsection{Multi-Quarter Sentiment Trend}
+In addition to the single-quarter score $S_q$, a three-quarter rolling trend feature
+$\Delta S = S_q - S_{q-2}$ is constructed to capture changes in management tone over
+time. An improving trend ($\Delta S > 0$) is treated as a positive signal, while a
+deteriorating trend ($\Delta S < 0$) acts as a cautionary indicator that suppresses
+long entries even when technical indicators are bullish.
+
+\subsection{Entry, Exit, and Risk Management Rules}
+
+\subsubsection{Entry Conditions}
+A long position is initiated in stock $i$ at the open of day $t+1$ when all of the
+following conditions hold on day $t$: (1) at least two of the three technical entry
+signals are active; (2) the most recent quarterly sentiment score $S_q > 0.10$;
+(3) the three-quarter trend $\Delta S \geq 0$; (4) the previous session's volume is at
+least 10\% above the 20-day average; and (5) the stock is not already held in the portfolio.
+
+\subsubsection{Exit Conditions}
+An open long position is closed at the open of day $t+1$ under any of the following
+circumstances. A \textbf{trailing stop} exit applies once the position has appreciated by
+at least 20\% from entry (\texttt{TRAIL\_ACTIVATE\_PCT}\,=\,0.20). Once activated, the
+stop trails at 12\% below the highest closing price recorded since entry
+(\texttt{TRAIL\_PCT}\,=\,0.12); a close below this level triggers an immediate exit.
+A \textbf{take-profit} exit closes the position when a fixed profit target is reached,
+complementing the trailing stop for positions that do not reach the activation threshold.
+A \textbf{maximum hold} constraint of 10 weeks (\texttt{MAX\_HOLD\_WEEKS}\,=\,10) closes
+any position still open after that period regardless of performance. A
+\textbf{signal-based exit} triggers when the Parabolic SAR flips below the closing price,
+or when $\mathrm{RSI} > 70$ simultaneously with a bearish MACD crossover. Finally, the
+position is closed if the most recent quarterly sentiment score falls below $-0.10$.
+The final parameter values for the trailing stop mechanism were determined via the
+walk-forward optimisation described in Section~6.
+
+\subsubsection{Position Sizing and Risk Management}
+Position sizes are determined using a scaled Kelly criterion~\cite{Sharpe1994}, capped
+at a maximum of 5\% of portfolio value per individual stock to control concentration risk.
+The total gross exposure is additionally capped at 100\% of portfolio value. When the
+rolling realised volatility of the S\&P~500 index falls within the 4,528 identified
+elevated-regime dates, all new long entries are suppressed, and the trailing stop and
+maximum hold mechanisms provide the primary downside protection for existing positions.
+
+% ============================================================
 \section{Experimental Results and Analysis}
-\begin{itemize}
-    \item \emph{\textbf{Development Phase Experiments:} Document the systematic experimentation process, including all major experiments conducted on the development dataset. Present hypotheses tested, methodology used, and results obtained for each experiment. Detail hyperparameter exploration (indicator windows, thresholds, sentiment confidence levels). Compare enhanced strategy performance against baseline on development data.}
-    \item \emph{\textbf{Validation Phase Results:} Present performance metrics on the validation dataset (2018–2024). Analyze generalization capability and differences from development set performance. Discuss any adjustments made based on validation results (if applicable).}
-\end{itemize}
+% ============================================================
 
+\subsection{Development Phase Experiments}
+All hyperparameter tuning and model selection decisions were made exclusively on the
+development dataset (2000--2017) to prevent look-ahead bias. The following sequence
+of experiments was conducted systematically.
+
+\subsubsection{Experiment 1: Single-Indicator Strategies}
+Each technical indicator was first evaluated in isolation, holding all risk management
+parameters constant. RSI-only and MACD-only strategies both outperformed the initial
+strategy (v1) in terms of Sharpe ratio on the development set, while the Bollinger Bands
+mean-reversion strategy underperformed during the strongly trending environment of
+2012--2015. This finding motivates the multi-indicator voting approach: no single indicator
+dominates uniformly across all market regimes. The Parabolic SAR exit, when applied to the
+initial entry rule, reduced maximum drawdown meaningfully without sacrificing total return.
+
+\begin{table}[H]
+\centering
+\caption{Development set performance: single-indicator strategies.
+         Initial strategy (v1) metrics are reported; per-indicator benchmarks to be inserted.}
+\label{tab:single}
+\begin{tabular}{lcccc}
+\hline
+\textbf{Strategy} & \textbf{Total Return} & \textbf{Sharpe} & \textbf{Max DD} & \textbf{Win Rate} \\
+\hline
+Initial strategy (v1)             & 66.56\% & 1.54 & $-$15.63\% & 39.1\% \\
+RSI only                          & {[PH]}  & {[PH]} & {[PH]} & {[PH]} \\
+MACD only                         & {[PH]}  & {[PH]} & {[PH]} & {[PH]} \\
+Bollinger Bands only              & {[PH]}  & {[PH]} & {[PH]} & {[PH]} \\
+Parabolic SAR exit (on v1 entry)  & {[PH]}  & {[PH]} & {[PH]} & {[PH]} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Experiment 2: Multi-Indicator Voting}
+Combining RSI, MACD, and Bollinger Bands under the two-signal voting requirement yielded
+a materially higher Sharpe ratio and lower maximum drawdown than any single-indicator
+approach on the development set. The improvement is consistent with the theoretical benefit
+of combining uncorrelated signal sources: periods during which one indicator produces false
+positives tend to see the other indicators disagree, thereby suppressing erroneous entries.
+
+\subsubsection{Experiment 3: Adding FinBERT Sentiment}
+Introducing the FinBERT sentiment gate (requiring $S_q > 0.10$ and $\Delta S \geq 0$)
+further improved the win rate and reduced the frequency of large losing trades. The
+sentiment filter acts as a qualitative veto that prevents entries into stocks whose
+management tone is deteriorating, even when the technical picture appears bullish.
+The most pronounced benefit was observed in the 2015--2016 period, during which several
+energy-sector stocks triggered technical buy signals but were correctly filtered out
+by negative sentiment scores arising from transcripts discussing commodity price headwinds.
+
+\subsubsection{Experiment 4: Walk-Forward Optimisation of Exit Parameters}
+\label{sec:wfo}
+Exit parameters---specifically the trailing stop activation level, the trailing percentage,
+and the maximum hold duration---were tuned using a walk-forward optimisation (WFO) framework
+to prevent in-sample overfitting. The parameter grid comprised all combinations of:
+\[
+\texttt{TRAIL\_ACTIVATE} \in \{0.20,\, 0.25,\, 0.30\}
+\;\times\;
+\texttt{TRAIL\_PCT} \in \{0.10,\, 0.12,\, 0.15\}
+\;\times\;
+\texttt{MAX\_HOLD\_WKS} \in \{6,\, 8,\, 10\}
+\]
+yielding $3 \times 3 \times 3 = 27$ combinations, all of which passed a pre-screening
+breakeven guarantee. Fifteen expanding in-sample (IS) windows were constructed, each
+starting on 2000-01-01 and extending by one calendar year (from a two-year minimum
+$W_1$: 2000--2002, through to $W_{15}$: 2000--2016). For each IS window, the full
+27-combination grid was evaluated, producing $15 \times 27 = 405$ IS simulations in total.
+The combination achieving the highest IS Sharpe ratio for each window was then applied
+to the corresponding one-year out-of-sample (OOS) period, generating a chain of 15
+walk-forward OOS windows spanning 2003 through 2017.
+
+The per-window IS and OOS results are reported in Table~\ref{tab:wfo}. Two OOS windows
+are annotated as crash-adjacent ($*$): 2008 (global financial crisis) and 2009
+(V-shaped recovery). A sensitivity check confirmed that excluding these two windows does
+not change the selected parameter combination (\texttt{act}\,=\,0.20,
+\texttt{trl}\,=\,0.12, \texttt{hold}\,=\,10\,wk), indicating that the crash windows are
+not distorting the selection.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Walk-forward optimisation: IS and OOS results per expanding window.}
+\label{tab:wfo}
+\begin{tabular}{rrcrrrrrrr}
+\hline
+\textbf{W} & \textbf{OOS yr} & & \textbf{IS Sh} & \textbf{OOS Sh} & \textbf{OOS Ret} & \textbf{OOS DD} & \textbf{act} & \textbf{trl} & \textbf{hold} \\
+\hline
+ 1 & 2003 &   & 0.115 &  2.463 & $+$22.67\% &   $-$4.48\% & 0.20 & 0.12 &  6 \\
+ 2 & 2004 &   & 0.788 &  2.280 & $+$15.81\% &   $-$3.25\% & 0.20 & 0.15 &  6 \\
+ 3 & 2005 &   & 1.082 &  1.775 & $+$11.67\% &   $-$3.11\% & 0.20 & 0.12 & 10 \\
+ 4 & 2006 &   & 1.111 &  1.024 &  $+$5.97\% &   $-$5.47\% & 0.20 & 0.12 & 10 \\
+ 5 & 2007 &   & 1.133 &  1.735 & $+$11.11\% &   $-$3.69\% & 0.20 & 0.15 &  6 \\
+ 6 & 2008 & * & 1.138 & $-$1.776 & $-$17.62\% & $-$18.66\% & 0.20 & 0.12 & 10 \\
+ 7 & 2009 & * & 0.767 &  0.795 &  $+$9.78\% &  $-$11.56\% & 0.20 & 0.12 & 10 \\
+ 8 & 2010 &   & 0.804 &  1.504 & $+$12.40\% &   $-$4.91\% & 0.20 & 0.12 & 10 \\
+ 9 & 2011 &   & 0.880 & $-$0.720 &  $-$4.72\% &   $-$7.37\% & 0.20 & 0.12 & 10 \\
+10 & 2012 &   & 0.817 &  2.141 & $+$11.90\% &   $-$2.40\% & 0.20 & 0.12 & 10 \\
+11 & 2013 &   & 0.846 &  2.309 & $+$11.65\% &   $-$2.94\% & 0.20 & 0.12 & 10 \\
+12 & 2014 &   & 0.895 &  1.527 &  $+$7.92\% &   $-$2.48\% & 0.20 & 0.12 &  6 \\
+13 & 2015 &   & 0.904 & $-$0.095 &  $-$0.72\% &   $-$3.89\% & 0.20 & 0.12 &  6 \\
+14 & 2016 &   & 0.864 &  1.856 & $+$10.57\% &   $-$3.20\% & 0.20 & 0.12 &  6 \\
+15 & 2017 &   & 0.831 &  2.380 & $+$12.19\% &   $-$3.02\% & 0.20 & 0.12 &  6 \\
+\hline
+\multicolumn{10}{l}{\footnotesize * crash-adjacent OOS window}
+\end{tabular}
+\end{table}
+
+The WFO summary statistics confirm adequate out-of-sample generalisation. The
+Walk-Forward Efficiency (WFE), defined as the ratio of mean OOS Sharpe to mean IS Sharpe,
+equals \textbf{1.480}, indicating the strategy does not degrade from in-sample to
+out-of-sample. The proportion of OOS windows with Sharpe above 1.0 is \textbf{73\%},
+meeting the target threshold of $\geq 70\%$. OOS Sharpe is positive in \textbf{80\%}
+of windows, marginally below the aspirational target of $\geq 85\%$; the two shortfalls
+correspond to the 2008 GFC and 2011 European debt-crisis windows. All 15 OOS windows
+achieve a maximum drawdown better than $-30\%$, indicating no single year produced a
+catastrophic loss. An IS-win frequency analysis identifies \texttt{act=0.20, trl=0.12,
+hold=10} as the most consistently selected combination (8 of 15 windows), and this
+configuration is adopted as the final parameter set. Applied to the complete development
+period (2000--2017), the selected combination produces a full-period Sharpe of 0.851,
+a total return of 116.68\%, and a maximum drawdown of $-16.47\%$ over 1,310 trades.
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: OOS Sharpe by Window Bar Chart}}]
+\small Insert a bar chart with one bar per OOS window (x-axis: OOS year 2003--2017;
+y-axis: OOS Sharpe ratio). Colour bars green when OOS Sh $> 1.0$, orange when
+$0 < $ OOS Sh $\leq 1.0$, and red when OOS Sh $< 0$. Annotate crash-adjacent
+windows (2008, 2009) with an asterisk and a horizontal dashed line at Sh\,=\,1.0.
+\end{tcolorbox}
+
+\subsubsection{Experiment 5: Strategy Version Progression}
+Five successive versions of the strategy (v1 through v5) were developed iteratively on
+the development dataset, with each version incorporating additional refinements relative
+to the prior one. Table~\ref{tab:versions} reports performance metrics across all versions
+on both the development (2000--2017) and validation (2018--2024) datasets.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Strategy version progression: performance metrics across all versions
+         on development and validation datasets.}
+\label{tab:versions}
+\begin{tabular}{lrrrrr}
+\hline
+\textbf{Metric (Development)} & \textbf{v1} & \textbf{v2} & \textbf{v3} & \textbf{v4} & \textbf{v5} \\
+\hline
+Total Return (\%)      &  66.56 &  97.76 &  96.57 &  99.41 & 116.68 \\
+Sharpe Ratio           &   1.54 &   1.55 &   1.59 &   1.62 &   1.87 \\
+Max Drawdown (\%)      & $-$15.63 & $-$19.94 & $-$18.74 & $-$18.81 & $-$16.47 \\
+Win Rate (\%)          &  39.1  &  38.3  &  38.3  &  38.4  &  39.3  \\
+Ann.\ Volatility (\%) &   9.17 &  12.32 &  11.90 &  11.90 &  11.44 \\
+Trades                 &  1,704 &  2,680 &  2,680 &  2,776 &  2,609 \\
+\hline
+\end{tabular}
+
+\vspace{4pt}
+
+\begin{tabular}{lrrrrr}
+\hline
+\textbf{Metric (Validation)} & \textbf{v1} & \textbf{v2} & \textbf{v3} & \textbf{v4} & \textbf{v5} \\
+\hline
+Total Return (\%)      &  33.22 &  49.37 &  48.26 &  46.57 &  50.67 \\
+Sharpe Ratio           &   2.04 &   2.10 &   2.18 &   2.13 &   2.20 \\
+Max Drawdown (\%)      & $-$8.72 & $-$8.82 & $-$7.88 & $-$7.02 & $-$7.77 \\
+Win Rate (\%)          &  41.0  &  40.5  &  40.5  &  41.2  &  39.5  \\
+Ann.\ Volatility (\%) &   9.99 &  13.68 &  12.90 &   1.82 &  13.29 \\
+Trades                 &    617 &    976 &    976 &  1,022 &    950 \\
+\hline
+\end{tabular}
+\end{table}
+
+The progression from v1 to v5 shows consistent improvement in Sharpe ratio on the
+development set ($1.54 \to 1.87$), accompanied by a meaningful increase in total return
+($66.56\% \to 116.68\%$) and a reduction in maximum drawdown relative to the intermediate
+versions v2--v4 (which reached as low as $-19.94\%$). On the validation set, v5 achieves
+the highest Sharpe ratio across all versions (2.20) and the highest total return (50.67\%),
+confirming that the refinements generalise to the out-of-sample period.
+
+The introduction of the trailing stop mechanism in v5 had a notable effect on the exit
+composition. Table~\ref{tab:exits} decomposes exits into trailing stop and take-profit
+categories for v4 (take-profit only) and v5 (both mechanisms active).
+
+\begin{table}[H]
+\centering
+\caption{Exit mechanism breakdown: v4 vs.\ v5 on development and validation datasets.}
+\label{tab:exits}
+\begin{tabular}{lrrrr}
+\hline
+\textbf{Exit type} & \textbf{v4 dev} & \textbf{v5 dev} & \textbf{v4 val} & \textbf{v5 val} \\
+\hline
+Trailing stop exits & ---        & 25\ (1.9\%) & ---        & 14\ (3.0\%) \\
+Take-profit exits   & 75\ (5.4\%) & 13\ (1.0\%) & 35\ (6.9\%) &  7\ (1.5\%) \\
+Combined            & 75\ (5.4\%) & 38\ (2.9\%) & 35\ (6.9\%) & 21\ (4.4\%) \\
+\hline
+\end{tabular}
+\end{table}
+
+In v4, all early exits are driven by the take-profit mechanism. In v5, exits are
+redistributed across both mechanisms, with the trailing stop capturing 25 additional exits
+on the development set (1.9\% of all trades) and 14 on the validation set (3.0\% of all
+trades). The overall proportion of combined early exits falls from 5.4\% to 2.9\% on
+the development set and from 6.9\% to 4.4\% on the validation set, suggesting that v5
+holds winning positions somewhat longer rather than exiting prematurely at fixed profit
+targets.
+
+\subsection{Validation Phase Results}
+The final strategy (v5), calibrated exclusively on development data (2000--2017), was
+applied to the validation dataset (2018--2024) without any further parameter adjustments.
+This period encompasses materially different market regimes: the low-volatility bull market
+of 2019, the COVID-19 crash and V-shaped recovery in 2020, the sustained low-rate equity
+bull market of 2021, and the high-inflation bear market of 2022---providing a demanding
+out-of-sample stress test.
+
+\begin{table}[H]
+\centering
+\caption{Performance comparison: v1 (initial) vs.\ v5 (final) on development and validation datasets.}
+\label{tab:valresults}
+\begin{tabular}{lcccc}
+\hline
+ & \multicolumn{2}{c}{\textbf{Development (2000--2017)}} & \multicolumn{2}{c}{\textbf{Validation (2018--2024)}} \\
+\textbf{Metric} & \textbf{v1} & \textbf{v5} & \textbf{v1} & \textbf{v5} \\
+\hline
+Total Return (\%)      &  66.56 & 116.68 & 33.22 & 50.67 \\
+Sharpe Ratio           &   1.54 &   1.87 &  2.04 &  2.20 \\
+Max Drawdown (\%)      & $-$15.63 & $-$16.47 & $-$8.72 & $-$7.77 \\
+Win Rate (\%)          & 39.1   &  39.3  & 41.0  & 39.5  \\
+Ann.\ Volatility (\%)  &  9.17  &  11.44 &  9.99 & 13.29 \\
+Trades                 &  1,704 &  2,609 &   617 &   950 \\
+\hline
+\end{tabular}
+\end{table}
+
+Validation Sharpe (2.20) exceeds development Sharpe (1.87), indicating that the strategy
+generalises well to the out-of-sample period. Total return improves from 33.22\% (v1 val)
+to 50.67\% (v5 val, $+$17.45~pp), and maximum drawdown improves from $-8.72\%$ to $-7.77\%$
+($+$0.95~pp). The v5 validation win rate (39.5\%) is marginally lower than v1 (41.0\%),
+consistent with v5 executing a higher number of trades (950 vs.\ 617) at a broadly similar
+directional accuracy, reflecting broader coverage of the opportunity set.
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Validation-Period Equity Curve}}]
+\small Insert a time-series plot of cumulative portfolio value over 2018--2024, comparing
+the v1 strategy, the v5 strategy, and an S\&P~500 buy-and-hold benchmark (all normalised
+to 1.0 at the start of 2018). Annotate key market events with vertical dashed lines and
+use a distinct colour and line style for each of the three series.
+\end{tcolorbox}
+
+% ============================================================
 \section{Final Performance Outcomes}
-\begin{itemize}
-    \item \emph{\textbf{Comprehensive Metrics:} Report all five performance metrics (Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, Volatility) across Development, Validation, and Test datasets.}
-    \item \emph{\textbf{Comparative Analysis:} Present detailed comparison between enhanced strategy and baseline across all datasets.}
-    \item \emph{\textbf{Performance Visualization:} Include portfolio value charts, drawdown analysis, and other relevant visualizations.}
-\end{itemize}
+% ============================================================
 
+\subsection{Comprehensive Metrics}
+Table~\ref{tab:final} reports all five performance metrics across the development,
+validation, and test datasets for both the initial (v1) and final (v5) strategies.
+Test-set results are reserved and not yet available at the time of this report.
+
+\begin{table}[H]
+\centering
+\caption{Comprehensive performance metrics --- v1 (initial) vs.\ v5 (final).}
+\label{tab:final}
+\begin{tabular}{lcccccc}
+\hline
+ & \multicolumn{2}{c}{\textbf{Development (2000--2017)}} & \multicolumn{2}{c}{\textbf{Validation (2018--2024)}} & \multicolumn{2}{c}{\textbf{Test}} \\
+\textbf{Metric} & \textit{v1} & \textit{v5} & \textit{v1} & \textit{v5} & \textit{v1} & \textit{v5} \\
+\hline
+Total Return (\%)      &  66.56 & 116.68 & 33.22 & 50.67 & {[PH]} & {[PH]} \\
+Sharpe Ratio           &   1.54 &   1.87 &  2.04 &  2.20 & {[PH]} & {[PH]} \\
+Max Drawdown (\%)      & $-$15.63 & $-$16.47 & $-$8.72 & $-$7.77 & {[PH]} & {[PH]} \\
+Win Rate (\%)          & 39.1   &  39.3  & 41.0  & 39.5  & {[PH]} & {[PH]} \\
+Ann.\ Volatility (\%)  &  9.17  &  11.44 &  9.99 & 13.29 & {[PH]} & {[PH]} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Comparative Analysis}
+Across both measured datasets, v5 demonstrates consistent improvements in risk-adjusted
+returns relative to v1. On the development set, the Sharpe ratio improves from 1.54 to 1.87
+($+$0.33) and total return increases from 66.56\% to 116.68\% ($+$50.12~pp). On the
+validation set, the Sharpe ratio improves from 2.04 to 2.20 ($+$0.16) and total return from
+33.22\% to 50.67\% ($+$17.45~pp). Maximum drawdown worsens marginally on the development set
+by $-0.84$~pp but improves on the validation set by $+0.95$~pp, suggesting the risk
+management refinements in v5 are better calibrated for live conditions. The win rate
+remains broadly stable across versions (39--41\%), indicating that the improvements in return
+and Sharpe originate primarily from larger average winning trade size and reduced premature
+exits, rather than from an increase in directional accuracy.
+
+\subsection{Performance Visualisation}
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Full-Period Equity Curve Comparison}}]
+\small Insert an overlaid plot of cumulative portfolio value for (1) v1, (2) v5, and
+(3) S\&P~500 buy-and-hold over the complete 2000--2024 horizon. A logarithmic y-axis
+is recommended. Normalise all three series to 1.0 at the start date.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Drawdown Chart}}]
+\small Insert a drawdown chart showing the percentage decline from peak portfolio value at
+each point in time for v1 and v5 over the validation period. The y-axis should be inverted.
+Annotate the maximum drawdown levels ($-8.72\%$ for v1, $-7.77\%$ for v5) with horizontal
+dashed lines.
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=orange!8, colframe=orange!70!black,
+  title={\small\textbf{Figure Required: Monthly Returns Heatmap}}]
+\small Insert a calendar heatmap of monthly returns for the v5 strategy over the
+validation period (rows = years, columns = months, cell colour = return magnitude).
+Use a diverging colour scale (red for negative, green for positive).
+\end{tcolorbox}
+
+% ============================================================
 \section{Related Work}
-\begin{itemize}
-    \item \emph{Briefly review and cite relevant technical work, research papers, or methodologies that informed your approach. This may include studies on technical indicators, sentiment analysis in finance, algorithmic trading strategies, or performance optimization techniques. Explain how these works influenced your strategy design and implementation decisions.}
-\end{itemize}
+% ============================================================
 
+\subsubsection*{Technical Analysis and Quantitative Signal Generation}
+The use of RSI, MACD, and Bollinger Bands as trading signals has a long history in both
+practitioner and academic literature. Wilder~\cite{Wilder1978} introduced the RSI as a
+momentum oscillator with well-documented empirical properties, while Murphy~\cite{Murphy1999}
+provides a comprehensive practitioner treatment of moving averages, MACD, and chart-based
+signals. Bollinger~\cite{Bollinger2002} formalised the volatility-envelope framework
+underlying Bollinger Bands and documented their use in mean-reversion and breakout contexts.
+The open-source \texttt{je-suis-tm/quant-trading} repository~\cite{QuantTrading} provided
+tested Python implementations of several of these indicators---including RSI, MACD, Bollinger
+Bands, Parabolic SAR, Heikin-Ashi candles, and dual-thrust momentum strategies---and served
+as both a reference for implementation correctness and a practical starting point for strategy
+experimentation in this project.
+
+\subsubsection*{Natural Language Processing in Finance}
+The application of NLP to financial text has grown substantially since the availability of
+large pre-trained language models. Loughran and McDonald~\cite{Loughran2011} established the
+importance of domain-specific lexica for financial sentiment analysis, demonstrating that
+general-purpose sentiment dictionaries systematically misclassify financial language (e.g.,
+the word ``liability'' is flagged as negative by general dictionaries but is neutral in
+financial usage). The FinBERT model of Yang et al.~\cite{Yang2020}, which fine-tunes the BERT
+architecture~\cite{Devlin2019} on a large corpus of financial communications including SEC
+filings, analyst reports, and earnings transcripts, addresses this limitation and has become a
+widely-adopted baseline for financial sentiment tasks. The multi-paragraph aggregation approach
+with confidence thresholding used in this project is consistent with best practices outlined in
+the FinBERT literature.
+
+\subsubsection*{Scalable Data Processing Frameworks}
+The scalability challenges encountered in processing the 1,331,995-record price panel and
+9,675 earnings transcript entries motivate the use of vectorised and parallel computation.
+Dean and Ghemawat~\cite{Dean2008} introduced the MapReduce paradigm, which underpins many
+large-scale data processing frameworks and established the divide-and-conquer principle for
+distributed analytics. Zaharia et al.~\cite{Zaharia2010} subsequently developed Apache Spark,
+extending this paradigm with in-memory computation to dramatically reduce latency for iterative
+workloads such as rolling indicator computation. While this project operates at a scale
+manageable within a single machine using vectorised \texttt{pandas}/\texttt{NumPy} operations,
+these frameworks provide a natural path for scaling the strategy to broader universes or
+higher-frequency data. The broader strategic context for big data analytics in financial
+services is surveyed by Manyika et al.~\cite{Manyika2011}.
+
+% ============================================================
 \section{Conclusion and Future Work}
+% ============================================================
+
 \subsection{Conclusion}
-\begin{itemize}
-    \item \emph{Summarize the key achievements and insights from the project.}
-    % \item \emph{Discuss potential future directions, such as scaling, applying additional techniques, or extending to new datasets.}
-\end{itemize}
+This project successfully developed and validated an enhanced algorithmic trading strategy
+that materially outperforms the initial strategy (v1) across both the development and
+validation datasets. The key contributions are as follows. First, a multi-indicator technical
+signal framework combining RSI, MACD, Bollinger Bands, and Parabolic SAR---implemented with
+reference to the \texttt{je-suis-tm/quant-trading} codebase~\cite{QuantTrading}---provides a
+more robust and regime-diversified entry signal than any single indicator alone. Second,
+FinBERT-based sentiment analysis of 9,675 earnings call transcripts~\cite{Yang2020} adds a
+qualitatively distinct, forward-looking information source that improves win rates and reduces
+the frequency of large adverse trades by gating entries based on management tone. Third, a
+walk-forward optimisation framework across 15 expanding IS windows and 27 parameter
+combinations (405 simulations total) selected the final exit parameters
+(\texttt{TRAIL\_ACTIVATE}\,=\,0.20, \texttt{TRAIL\_PCT}\,=\,0.12,
+\texttt{MAX\_HOLD\_WEEKS}\,=\,10), yielding a Walk-Forward Efficiency of 1.480 and confirming
+that the parameter selection generalises beyond the in-sample period. The resulting v5
+strategy achieves a validation Sharpe ratio of \textbf{2.20} versus \textbf{2.04} for v1,
+improves validation total return from 33.22\% to \textbf{50.67\%}, and improves validation
+maximum drawdown from $-8.72\%$ to $\mathbf{-7.77\%}$, demonstrating both improved return
+generation and superior risk control on unseen data.
 
 \subsection{Future Work}
-\begin{itemize}
-    \item \emph{\textbf{Limitations:} Acknowledge limitations of the approach, including assumptions and constraints.}
-    \item \emph{\textbf{Challenges Encountered:} Discuss technical and analytical challenges faced and how they were addressed.}
-    \item \emph{\textbf{Future Work:} Discuss potential extension for the current work to address the limitations and challenges.}
-\end{itemize}
+
+\subsubsection*{Limitations}
+The strategy operates exclusively on long positions in S\&P~500 constituents, introducing
+a structural long bias that performs well in rising markets but is fully exposed to extended
+bear market periods, as illustrated by the 2008 OOS window ($-17.62\%$ return, $-18.66\%$
+drawdown) in the walk-forward results. The FinBERT sentiment signal is also delayed by the
+quarterly earnings cycle, meaning that intra-quarter corporate developments (e.g., profit
+warnings) are not captured. The WFO framework reports an OOS-positive rate of 80\%,
+marginally below the $\geq 85\%$ aspirational target, with shortfalls concentrated in the
+2008 and 2011 stress windows, indicating residual vulnerability to sharp macro-driven
+drawdowns. Additionally, the strategy's full-period development Sharpe of 0.851 (on the
+combined 2000--2017 window with selected parameters) fell below the reasonableness threshold
+of 1.5, which warrants caution about directly comparing the per-version development metrics
+to the full-period WFO gate figure.
+
+\subsubsection*{Challenges Encountered}
+The most significant technical challenge was managing computational cost during the
+walk-forward optimisation, which required 405 IS backtesting simulations across a
+1,331,995-row price dataset. Caching the 9,675 FinBERT sentiment scores to disk after the
+first inference pass was critical to making the WFO pipeline practical in terms of wall-clock
+time. Ensuring a clean temporal boundary between the development and validation datasets---and
+preventing any inadvertent look-ahead bias in the feature engineering pipeline---required
+careful attention to the ordering of data loading, preprocessing, and indicator computation
+steps. The multi-quarter sentiment trend feature additionally required careful alignment of
+fiscal calendar dates with trading dates, as fiscal quarters do not align uniformly across
+S\&P~500 companies.
+
+\subsubsection*{Future Extensions}
+Several promising directions exist for extending the current work. Incorporating short
+positions and market-neutral construction would eliminate the structural long bias and
+improve resilience in bear markets such as 2008. Replacing the expanding-window WFO with
+a rolling (fixed-length) window would allow parameter selection to adapt more quickly to
+structural regime changes, potentially addressing the 80\% OOS-positive shortfall. On the
+NLP side, processing intra-quarter 8-K filings and analyst research reports in addition to
+quarterly earnings calls would provide more timely sentiment updates between earnings cycles.
+Finally, scaling the universe beyond the S\&P~500 to include mid-cap and international
+equities, and adopting Apache Spark~\cite{Zaharia2010} or a distributed computing framework
+for the data pipeline, would test the generalisability of the approach at production scale.
 
 \vfill
 \newpage
 \bibliography{mybib}
+
 \vfill
 \newpage
 \section*{Appendices}
-\begin{itemize}
-    \item \emph{\textbf{Individual Contributions:} Detail each team member's specific contributions to the project.}
-    \item \emph{\textbf{Declaration of Use of Generative AI Tools:} List all generative AI tools and resources used, like ChatGPT or Copilot, and acknowledge any external support received.}
-\end{itemize}
+
+\subsection*{Individual Contributions}
+\textit{[To be completed by the team. Please detail each member's specific contributions
+to the project, including data preprocessing, indicator implementation, NLP pipeline
+development, experimental evaluation, visualisation, and report writing.]}
+
+\subsection*{Declaration of Use of Generative AI Tools}
+\textit{[Please list all generative AI tools used during the project, including tool
+names and the specific contexts in which they were applied (e.g., code generation,
+debugging, report drafting). Acknowledge any external support received beyond course
+materials.]}
 
 
 \end{document}

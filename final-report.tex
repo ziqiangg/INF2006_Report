@@ -1,4 +1,4 @@
-    \documentclass[11pt,twoside,a4paper]{article}
+\documentclass[11pt,twoside,a4paper]{article}
 
 \newcommand{\reporttitle}{Algorithmic Trading Strategy Development and Optimisation}
 \newcommand{\gid}{X}
@@ -8,131 +8,382 @@
 \newcommand{\cidTwo}{2400964}
 \newcommand{\reportauthorThree}{Cai Wenjing}
 \newcommand{\cidThree}{2401497}
-\newcommand{\reportauthorFour}{Student 4}
+\newcommand{\reportauthorFour}{Ng Kay Cheng}
 \newcommand{\cidFour}{your id number}
-\newcommand{\reportauthorFive}{Student 5}
+\newcommand{\reportauthorFive}{Hing Zheng Wen}
 \newcommand{\cidFive}{your id number}
-\newcommand{\reportauthorSix}{Student 6}
+\newcommand{\reportauthorSix}{Fang Chong}
 \newcommand{\cidSix}{your id number}
-
 
 \newcommand{\reporttype}{Group Project Assignment 2}
 \bibliographystyle{plain}
 
-% include files that load packages and define macros
-\input{includes} % various packages needed for maths etc.
-\input{notation} % short-hand notation and macros
-
+\input{includes}
+\input{notation}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
-% front page
 \input{titlepage}
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%% table of content
-%If a table of content is needed, simply uncomment the following lines
-%\tableofcontents
-%\newpage
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Main document
-\section*{Note}
-\emph{This report should comprehensively document your development process and findings for the algorithmic trading strategy project. The report must be 15 ± 5 pages (excluding references and appendices) and the suggested structure is as follows:}
 
 \section{Introduction}
+
+\subsection{Project Overview}
+
+This project develops and enhances an algorithmic trading strategy applied to S\&P 500 constituent stocks, using historical market data spanning 2000--2024 and earnings call transcripts processed via the FinBERT financial language model \citep{Araci2019}. The core objective is to iterate beyond a simple moving-average baseline toward a multi-signal, risk-managed strategy that achieves strong risk-adjusted returns across both in-sample and out-of-sample evaluation periods.
+
+The strategy integrates three categories of signal: (i) price-based technical indicators capturing momentum, mean-reversion, and market participation; (ii) natural language processing of earnings call transcripts to extract forward-looking management sentiment; and (iii) volatility regime awareness to dynamically scale position sizes and portfolio exposure. All strategy parameters were calibrated using a two-stage Walk-Forward Optimisation (WFO) process rather than single-period in-sample fitting, to reduce the risk of overfitting to any specific market regime.
+
+\subsection{Motivation and Background}
+
+Algorithmic trading strategies have become foundational in modern finance, enabling systematic, high-speed, and emotionally neutral decision-making across large asset universes \citep{Lopez2018}. In markets characterised by cross-sectional complexity and regime heterogeneity, purely discretionary approaches are ill-suited for consistent risk-adjusted performance.
+
+Big data analytics enables the processing of millions of price records and thousands of unstructured text documents at scale \citep{Manyika2011}. Frameworks such as Apache Spark and vectorised numerical computing support parallelised indicator computation across hundreds of tickers \citep{Zaharia2010}. Complementing quantitative signals, NLP applied to earnings call transcripts extracts forward-looking information -- including management guidance, risk disclosures, and confidence tone -- that is structurally absent from price time series alone \citep{Huang2022}. Together, these technologies enable a hybrid strategy architecture that combines the rigor of systematic quant methods with the informational depth of text analytics.
+
+\subsection{Objectives}
+
+The primary objectives of this project are:
+\begin{enumerate}[(1)]
+    \item Implement a multi-signal technical indicator framework extending beyond the baseline MA-50 crossover, incorporating RSI, MACD, volume ratio, Bollinger Bands, and ATR-based volatility regime detection.
+    \item Apply FinBERT-based sentiment analysis to earnings call transcripts using a three-tier keyword paragraph selection scheme, producing per-ticker sentiment scores that gate entry decisions.
+    \item Develop a scalable indicator computation pipeline using vectorised Pandas operations and parallelised FinBERT inference to reduce runtime from sequential baselines.
+    \item Implement a Walk-Forward Optimisation framework with a composite drawdown-penalised objective function and successive halving to calibrate strategy parameters without in-sample overfitting.
+    \item Achieve measurable improvements over the baseline across all five evaluation metrics: Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, and Volatility.
+\end{enumerate}
+
+\section{Enhanced Exploratory Data Analysis}
+
+\subsection{Dataset Overview and Coverage}
+
+The price dataset spans two partitions: the development split (Dev: 2000-01-03 to 2017-12-29) containing 1,332,576 records across 340 unique tickers, and the validation split (Val: 2018-01-02 to 2024-12-31) containing 598,740 records across 340 tickers. The earnings dataset contains 9,729 transcripts (Dev) and 8,534 transcripts (Val) across 294 tickers with earnings coverage. Of the 340 price-universe tickers, 291 (85.6\%) have at least one earnings transcript; the remaining 49 tickers pass the sentiment gate unconditionally.
+
+Data quality is high: no duplicate (ticker, date) rows were identified, no OHLC sanity violations (high $<$ low or close outside high/low $\pm 1\%$) were detected across the 1.3M price rows, and zero consecutive forward-fill gaps exceeding the 5-day limit were found. Three tickers were dropped from the Dev split due to fewer than 252 trading days of history (the minimum required to compute reliable technical indicators). Zero-volume trading days account for 0.118\% of records and represent exchange closures or data artefacts rather than illiquidity in active constituents.
+
+\subsection{Return Distribution and Outlier Characterisation}
+
+The cross-sectional daily return distribution exhibits positive skew (0.360) and high excess kurtosis (19.514), consistent with fat-tailed equity return distributions documented in the literature \citep{Cont2001}. The raw return series contains extreme observations including WMB on 2002-07-29 (+101.0\%) and REGN on 2000-02-23 (+75.4\%), attributable to corporate restructuring events and earnings surprises respectively. A $\pm 30\%$ daily return clip removes 185 rows (0.014\%), preserving signal integrity while preventing outlier contamination of rolling indicator windows.
+
+The mean daily return across all tickers and trading days is $+0.0720\%$ (annualised: $+19.9\%$), with a standard deviation of $2.40\%$ per day. The positive skew of the raw series ($+0.539$ pre-clip) indicates that large positive moves are more common than large negative moves, supporting a long-only strategy orientation.
+
+\subsection{Technical Indicator Signal Rates}
+
+EDA on a stratified 30-ticker sample of the Dev split quantifies the frequency at which each technical gate fires:
+
 \begin{itemize}
-    \item \emph{\textbf{Project Overview:} Briefly describe the algorithmic trading strategy project, including the objective to enhance the baseline strategy using S\&P 500 historical market data and earnings call transcripts.}
-
-This project focuses on developing and enhancing an algorithmic trading strategy by leveraging S\&P 500 historical market data and earnings call transcripts. The core objective is to build upon a baseline trading strategy, integrating quantitative technical indicators with qualitative insights derived from natural language processing (NLP) of corporate earnings communications. By analyzing price movements, trading volumes, and sentiment from transcripts, the project aims to create a more robust and predictive trading model that can generate profitable signals in the dynamic stock market environment. 
-    \item \emph{\textbf{Motivation and Background:} Explain the significance of algorithmic trading strategies in modern finance and how big data analytics and natural language processing can provide valuable insights.}
-
-Algorithmic trading strategies have revolutionized modern finance by enabling high-speed, data-driven decision-making that minimizes human bias and emotional influences. In an era where markets operate 24/7 and process vast amounts of data in real-time, these strategies provide a competitive edge through automation and precision. Big data analytics plays a crucial role by processing large-scale historical datasets to identify patterns and trends that traditional methods might overlook. Complementing this,  NLP extracts valuable insights from unstructured text data, such as earnings call transcripts, which often contain forward-looking statements, risk disclosures, and market sentiment indicators. Together, these technologies allow traders to incorporate both quantitative metrics (e.g., price volatility, volume spikes) and qualitative factors (e.g., management confidence, economic outlook) into their strategies, leading to more informed and adaptive trading decisions. 
-    \item \emph{\textbf{Objectives:} Clearly state the goals of the project, including specific improvements targeted over the baseline strategy.}
-
-The primary goals of this project are to systematically improve upon a baseline algorithmic trading strategy through iterative development and evaluation. 
-
-Specific objectives include: 
-    \item (1) implementing and optimizing technical indicators such as moving averages, RSI, MACD, and Bollinger Bands for signal generation; 
-    \item (2) applying NLP techniques, including FinBERT-based sentiment analysis, to earnings transcripts for enhanced predictive power; 
-    \item (3) exploring scalable computing methods to handle large datasets efficiently, reducing computational latency; 
-    \item (4) conducting rigorous performance evaluation using proper train/validation splits to ensure model generalization; and 
-    \item (5) achieving measurable improvements in key metrics such as Sharpe ratio, maximum drawdown, and cumulative returns compared to the baseline approach. 
-
-Through this process, the project seeks to demonstrate the practical value of integrating big data analytics and NLP in algorithmic trading. 
+    \item Gate 1 (price $>$ MA-200, market regime): 66.8\% of all ticker-weeks pass. This gate acts as a primary regime filter, excluding bear market positions.
+    \item RSI in $[40, 75]$: 89.8\% of gate-1 rows, indicating RSI alone is a weak discriminator. This motivated its use as a necessary but not sufficient gate.
+    \item MACD histogram $> 0$: 51.0\% of gate-1 rows. MACD provides the primary momentum confirmation signal.
+    \item Volume ratio $\geq 1.2\times$: 22.9\% of gate-1 rows. Volume is the most selective individual gate, confirming broad market participation behind a move.
+    \item 2-of-3 combination (any path): 57.4\% of gate-1 rows qualify for an entry consideration.
 \end{itemize}
 
-\section{Enhanced Exploratory Data Analysis (EDA)}
-\begin{itemize}
-    \item \emph{\textbf{Extended Analysis:} Present deeper insights beyond the baseline EDA. Analyze patterns, distributions, anomalies, and coverage across the datasets.}
-    \item \emph{\textbf{Key Findings and Implications:} Summarize the most important insights discovered and explain how they informed subsequent strategy design decisions and hypothesis formation.}
-\end{itemize}
+The low volume-ratio fire rate (22.9\%) relative to RSI and MACD confirms the structural orthogonality of volume as a signal: it measures market participation independently of price momentum direction and magnitude. This motivated the v2 design decision to replace the Bollinger Band mid-line gate (a price-derived momentum signal collinear with RSI and MACD) with the volume ratio.
+
+\subsection{Earnings Transcript Analysis}
+
+Of the 9,675 processed Dev earnings transcripts, 99.4\% exceed FinBERT's 512-token limit (median transcript length: 54,718 characters; maximum: 220,246 characters). Direct truncation to the first 1,200 characters would systematically discard forward-looking guidance sections that typically appear in the latter portion of earnings calls. The three-tier keyword paragraph selection scheme addresses this: paragraphs containing Tier-3 guidance keywords (\textit{outlook}, \textit{guidance}, \textit{forecast}) are prioritised (weight $3\times$), followed by Tier-2 financial keywords (weight $2\times$), and Tier-1 reporting boilerplate (weight $1\times$). Tier-3 terms appear in 70.3\% of transcripts at a median frequency of 2.95 per transcript, but carry the highest signal value due to their forward-looking content -- this frequency-value inversion justifies the tier weighting \citep{Loughran2011}.
+
+Across 18,209 processed transcripts (Dev + Val combined), the resulting FinBERT sentiment score (positive $-$ negative probability) has a mean of $+0.0224$ and a median of $+0.0165$, consistent with the well-documented positive bias in management earnings call language \citep{Price2012}. The entry-blocking threshold of $-0.25$ filters only the most negative 0.2\% of transcripts, functioning as a coarse gate against explicitly bearish communications rather than as a precision alpha signal.
+
+\subsection{Volatility Regime and Correlation Structure}
+
+Using the 52-week ATR percentile as a proxy for volatility regime, the Dev split spends 31.4\% of trading time in the ``high-vol'' regime (ATR percentile $> 70\%$). This calibration reflects the regime diversity of the 2000-2017 period, which includes the dot-com crash (2000--2002), the Global Financial Crisis (2008--2009), the European sovereign debt crisis (2011), and the 2015 commodity downturn.
+
+Pairwise correlation analysis across a 30-ticker sample (rolling 60-day window) reveals a mean absolute correlation of 0.147 during normal market conditions, with 0\% of ticker pairs exceeding the correlation threshold of 0.70. During stress periods (not shown in the sample), cross-sectional correlations rise sharply -- the EDA regime comparison (Section J) confirms this: the validation period includes three structurally distinct macro regimes (zero-rate 2018--2021, rate-shock bear 2022, recovery 2023--2024) that are absent from the Dev split, validating the WFO approach as more robust than single-period tuning.
+
+\subsection{Dev vs.\ Validation Regime Comparison}
+
+A direct comparison of the Dev and Val splits confirms near-identical statistical properties at the universe level: annualised return 19.92\% (Dev) vs.\ 17.00\% (Val), annualised volatility 38.01\% vs.\ 37.62\%, raw Sharpe 0.524 vs.\ 0.452. Despite similar aggregate statistics, the Val split contains episodes without historical precedent in the Dev period, including the COVID-19 market crash (S\&P $-34\%$ in 33 days, February--March 2020), the fastest Fed rate-hike cycle since 1980 (2022), and the SVB regional banking crisis (2023). The path distribution of the enhanced strategy across these regimes (Val: all-three 18.1\%, path-A 58.7\%, path-B 22.1\%) is structurally identical to the Dev distribution (19.4\%, 58.4\%, 21.0\%), confirming that the signal architecture captures a persistent cross-market phenomenon rather than a regime-specific artefact.
 
 \section{Data Cleaning and Preparation}
-\begin{itemize}
-    \item \emph{Document any data quality issues identified and the steps taken to address them (e.g., handling missing values, outliers, or erroneous observations).}
-\end{itemize}
 
-\section{Computational Efficiency and Performance Optimization}
-\begin{itemize}
-    \item \emph{\textbf{Scalability Challenges:} Describe computational challenges encountered when processing price records.}
-    \item \emph{\textbf{Optimization Strategies:} Document specific techniques implemented (e.g., vectorization, parallelization, memory optimization).}
-    \item \emph{\textbf{Performance Measurements:} Present quantitative evidence of efficiency improvements (runtime comparisons, memory usage).}
-\end{itemize}
+\subsection{Thin-Ticker Removal}
+
+Tickers with fewer than 252 trading days of price history (approximately one calendar year) are dropped prior to any indicator computation. This threshold ensures that all lookback-based indicators (MA-200, 52-week ATR percentile, 60-day rolling correlation) have sufficient history to produce statistically stable estimates. Three tickers were removed from the Dev split (0.9\% of the universe); zero were removed from the Val split, as the Val tickers are a subset of the established S\&P 500 universe with full continuous history.
+
+\subsection{OHLC Sanity Checks}
+
+Each row is validated against three conditions: (i) high $\geq$ low; (ii) close within high/low band $\pm 1\%$; and (iii) open within high/low band. Zero violations were identified across 1.9M combined rows, indicating high source data quality. The $\pm 1\%$ tolerance on the close boundary accommodates legitimate late-day rounding differences in OHLC data from consolidated feeds.
+
+\subsection{Return Clipping}
+
+Daily returns are clipped to $\pm 30\%$ to remove data errors and corporate event artefacts (splits, mergers, delistings). The 0.014\% clip rate is sufficiently low to confirm these are genuine outliers rather than market extremes that would require separate modelling treatment.
+
+\subsection{Earnings Transcript Filtering}
+
+Transcripts shorter than 100 characters (54 records) are dropped as they typically represent encoding errors or placeholder entries rather than genuine earnings communications. The remaining 18,150 transcripts across both splits are passed to the FinBERT pipeline for sentiment computation.
+
+\section{Computational Efficiency and Performance Optimisation}
+
+\subsection{Scalability Challenges}
+
+The primary computational bottleneck is FinBERT inference: at 9,675 transcripts in the Dev split and a sequential inference approach, unoptimised processing would require approximately 3--4 hours on CPU. A secondary bottleneck is the indicator computation pipeline: computing RSI, MACD, Bollinger Bands, ATR, and volume ratio across 337 tickers and 1,331,995 rows requires careful vectorisation to avoid per-ticker Python loops.
+
+\subsection{Optimisation Strategies}
+
+Nine targeted optimisations (OPT-1 through OPT-9) were implemented progressively across strategy versions:
+
+\textbf{OPT-1: Additive Sentiment Cache.} FinBERT inference is computed once per transcript per split and stored in a dictionary keyed by (ticker, date). The simulation loop reads from this cache rather than re-invoking the pipeline, eliminating redundant inference. Across 18,209 transcripts, this avoids approximately $N_{\text{weeks}} \times N_{\text{tickers}}$ duplicate inferences.
+
+\textbf{OPT-2: Additive Analytics Cache.} Technical indicators are precomputed once across the full split dataset and stored in a vectorised lookup structure, rather than being recomputed per ticker per simulation week. The ``additive'' design pattern (accumulating new entries without rebuilding the full cache) enables WFO to share a single precomputed cache across all IS/OOS windows.
+
+\textbf{OPT-3 and OPT-4: FinBERT Truncation and Batching.} Maximum input length is fixed at 1,200 characters (after keyword paragraph extraction), fitting within FinBERT's 512-token context with minimal padding. Batch size is set to 256, the maximum that fits within a T4 GPU's 16GB VRAM without memory pressure, reducing kernel launch overhead by $256\times$ relative to single-sample inference.
+
+\textbf{OPT-5 through OPT-9: Simulation Loop Micro-optimisations.} Vectorised percentile rank (\texttt{pct\_rank}) computation replaces per-date sorting; weekly timestamps are cached to avoid repeated \texttt{pd.Timestamp} construction; rolling return windows are precomputed per-week; an early-exit price check skips the decision logic for tickers with no price data on a given week; and the Bollinger Band mid-line is aliased to the 20-day moving average (OPT-9: \texttt{bb\_mid = ma\_20}) to avoid redundant computation.
+
+\subsection{Performance Measurements}
+
+The WFO precomputation step (FinBERT + analytics on the full Dev split) completes in approximately 30--60 minutes on a T4 GPU, establishing a one-time fixed cost shared across all IS/OOS windows. A single portfolio simulation run (one IS window) completes in approximately 2--5 minutes, enabling the full 90-simulation IS grid to run in approximately 30--60 minutes via \texttt{joblib} parallelisation across CPU cores. The WFO v2 successive-halving design (400$\to$100$\to$25$\to$1 candidates per window) reduces the evaluation schedule by 55\% relative to exhaustive evaluation of all candidates on the full IS history \citep{Li2018}, without degrading solution quality on the final winner.
 
 \section{Strategy Enhancement Methodology}
+
+\subsection{Technical Indicators and Features}
+
+\subsubsection{Indicator Set}
+
+The baseline strategy uses a single 50-day moving average as both regime filter and entry signal. The enhanced strategy computes six distinct indicator families across all tickers:
+
 \begin{itemize}
-    \item \emph{\textbf{Technical Indicators and Features:} Describe additional indicators implemented beyond the baseline's 50-day moving average. Justify indicator selection and parameter tuning approach. Explain how multiple indicators were combined for signal generation.}
-    \item \emph{\textbf{Earnings Transcript Analysis:} Detail improvements to earnings transcript processing using FinBERT. Explain how confidence scores were utilized and neutral sentiment handled. Describe any multi-quarter sentiment pattern analysis implemented.}
-    \item \emph{\textbf{Entry, Exit, and Risk Management Rules:} Present refined entry conditions and signal confirmation requirements. Describe exit strategy improvements (stop-loss refinements, profit targets). Explain position sizing methodology and concentration risk management.}
+    \item \textbf{MA-50 and MA-200}: Short- and long-term trend direction. MA-200 serves as the primary regime filter (Gate 1): positions are only initiated when price is above the 200-day moving average, restricting entries to bull market conditions.
+    \item \textbf{RSI (14-period)}: Momentum oscillator normalised to [0, 100]. Entry requires RSI $\in [40, 75]$: below 40 signals oversold conditions (genuine weakness) that may not recover within the strategy's 10-week holding horizon; above 75 signals overbought conditions with high reversal probability.
+    \item \textbf{MACD (12/26/9)}: The MACD histogram (fast EMA $-$ slow EMA $-$ signal line) captures momentum acceleration. A positive histogram value confirms that short-term momentum is accelerating upward.
+    \item \textbf{Bollinger Bands (20-period, 2 std)}: The band position (close relative to lower/upper band) and bandwidth (upper $-$ lower) are computed. The band mid-line is aliased to MA-20 for computational efficiency.
+    \item \textbf{Volume Ratio}: Current week's volume divided by the 20-period average. A ratio $\geq 1.2\times$ indicates above-average market participation, confirming that the price move is supported by broad trading activity rather than thin-volume noise.
+    \item \textbf{ATR (14-period, 52-week percentile)}: The 52-week percentile rank of the Average True Range provides a normalised volatility regime measure. This is used for both the continuous position-size multiplier ($\text{vol\_mult}$) and the correlation-threshold adjustment.
 \end{itemize}
+
+\subsubsection{Five-Gate Buy Pipeline}
+
+Entry decisions pass through five sequential gates:
+
+\textbf{Gate 1 (Regime):} Price $>$ MA-200. Restricts entries to bull market regimes (66.8\% of ticker-weeks pass).
+
+\textbf{Gate 2 (Signals):} Any 2-of-3 of RSI $\in [40, 75]$, MACD histogram $> 0$, volume ratio $\geq 1.2\times$. This generates five path types with different expected false-positive rates (Section 5.3).
+
+\textbf{Gate 3 (Sentiment):} FinBERT sentiment score $\geq -0.25$. Blocks entry only during explicitly bearish earnings communications. Tickers with no transcript pass unconditionally.
+
+\textbf{Gate 4a (Volatility):} The continuous volatility multiplier $\text{vol\_mult} = \max(0.40, 1.0 - 0.60 \times \text{vol\_pct})$ scales position size. This is not a binary gate but a continuous risk-scaling mechanism.
+
+\textbf{Gate 4b (Correlation):} The candidate position must have pairwise correlation $< 0.70$ with all currently held positions (measured on a rolling 60-day return window). This enforces portfolio diversification during stress regimes when cross-sectional correlations spike.
+
+\textbf{Gate 5 (Capacity):} Portfolio must have available slots below the regime-adjusted maximum position count ($\text{regime\_max}$), subject to the $\text{MAX\_DEPLOY\_FRAC} = 0.85$ capital deployment ceiling.
+
+\subsubsection{Path-Dependent Entry Sizing}
+
+Each 2-of-3 combination encodes a distinct market hypothesis with a different expected conviction level:
+
+\begin{center}
+\begin{tabular}{llcc}
+\hline
+Path & Signals & Multiplier & Interpretation \\
+\hline
+D (all\_three) & RSI + MACD + Volume & $1.00\times$ & All dimensions confirm \\
+A (RSI+MACD) & Momentum alignment & $0.90\times$ & Market participation absent \\
+B (RSI+Vol) & Participation present, MACD weak & $0.75\times$ & Momentum unconfirmed \\
+C-low & MACD+Vol, RSI 35--40 & $0.75\times$ & RSI in caution zone \\
+C-high & MACD+Vol, RSI 40--75 & $0.50\times$ & Anomalous combination \\
+\hline
+\end{tabular}
+\end{center}
+
+Path A reduces the multiplier from the original 1.0$\times$ to 0.90$\times$ (v5.3 change C4): volume is structurally orthogonal to RSI and MACD, so its absence in Path A represents a genuine reduction in conviction that was previously unmarked. Path D, the fully confirmed signal (all three dimensions agree), retains 1.0$\times$.
+
+\subsection{Earnings Transcript Analysis}
+
+\subsubsection{Three-Tier Keyword Paragraph Selection}
+
+Because 99.4\% of transcripts exceed FinBERT's 512-token limit, direct truncation would discard forward-looking guidance sections. The three-tier selection scheme instead extracts the highest-scoring paragraphs by keyword density:
+
+\begin{itemize}
+    \item \textbf{Tier 1 (weight $1\times$)}: Reporting boilerplate keywords (\textit{quarter}, \textit{results}, \textit{balance sheet}, \textit{year-over-year}). Present in virtually all transcripts; low sentiment signal.
+    \item \textbf{Tier 2 (weight $2\times$)}: Financial performance keywords (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}, \textit{headwind}). Medium signal value.
+    \item \textbf{Tier 3 (weight $3\times$)}: Forward-looking guidance keywords (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}). Appear in 70.3\% of transcripts but with highest signal value.
+\end{itemize}
+
+Selected paragraphs are concatenated to a maximum of 1,200 characters before FinBERT inference. The resulting sentiment score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
+
+\subsubsection{Sentiment Cache Design}
+
+An additive cache accumulates FinBERT results keyed by (ticker, quarter). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached in approximately 30--60 minutes using T4 GPU inference at batch size 256.
+
+\subsection{Entry, Exit, and Risk Management Rules}
+
+\subsubsection{Dynamic Position Sizing}
+
+The v5.3 base position target is:
+\[
+\text{base\_target} = \text{SIZING\_SCALE} \times \frac{\text{portfolio\_value}}{\text{MAX\_POSITIONS}} = 1.10 \times \frac{\text{portfolio\_value}}{18}
+\]
+
+SIZING\_SCALE $= 1.10$ compensates for the average path multiplier underutilisation ($\approx 0.83$ across the observed path distribution), targeting approximately 10--12\% idle cash at normal volatility. Prior to v5.3, a static \$5,000 position target caused idle cash to grow monotonically as the portfolio compounded: at a terminal Dev value of $\approx\$316{,}000$, each position represented only $\approx 1.6\%$ of portfolio vs.\ the intended $\approx 5\%$.
+
+\subsubsection{Continuous Volatility Scaling}
+
+Position sizes are multiplied by:
+\[
+\text{vol\_mult} = \max\!\left(0.40,\; 1.0 - 0.60 \times \text{vol\_pct}\right)
+\]
+where $\text{vol\_pct}$ is the 52-week ATR percentile. The function begins compressing positions at $\text{vol\_pct} = 0.20$ and floors at $0.40\times$ during maximum crisis. This replaces the v5.2 binary threshold ($0.5\times$ if vol\_pct $> 0.70$, else $1.0\times$), which fired reactively only after the threshold was crossed. The ATR percentile typically rises before price crashes, making continuous scaling proactively defensive.
+
+\subsubsection{Exit Logic}
+
+Positions are exited via one of six mechanisms, listed in order of priority:
+
+\begin{enumerate}[(1)]
+    \item \textbf{HWM Drawdown Brake}: If the rolling 52-week portfolio drawdown from its high-water mark (HWM) exceeds tiered thresholds (0\% $\to$ 1.00$\times$; $-5\%$ $\to$ 0.75$\times$; $-10\%$ $\to$ 0.50$\times$; $-20\%$ $\to$ 0.25$\times$ floor), the buy-side multiplier is compressed. This is not a sell signal but reduces new position sizes during sustained portfolio drawdown.
+    \item \textbf{Path-Differentiated Stop-Loss}: Global stop at $-15\%$ (paths D/A/B); C-high stop at $-10\%$; C-low stop at $-12\%$. C-high positions (the least-confirmed signal combination) receive the tightest stop.
+    \item \textbf{Trailing Stop}: Activates at $+20\%$ price appreciation above entry. Trailing gap of $12\%$ from the high-water mark. Backstop close at $+80\%$ (locks profit at near-peak).
+    \item \textbf{Take Profit}: Fixed $+40\%$ take-profit for positions that reach the target without triggering the trailing stop.
+    \item \textbf{Path B Timeout}: Path B (RSI + volume without MACD confirmation) exits after 10 weeks if MACD histogram remains negative. The $\text{macd\_confirmed}$ flag suppresses this timeout once MACD turns positive post-entry.
+    \item \textbf{Bearish 2-of-3}: Exits when the opposite signal pattern holds (2-of-3 indicators turn bearish). This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits across both splits.
+\end{enumerate}
 
 \section{Experimental Results and Analysis}
-\begin{itemize}
-    \item \emph{\textbf{Development Phase Experiments:} Document the systematic experimentation process, including all major experiments conducted on the development dataset. Present hypotheses tested, methodology used, and results obtained for each experiment. Detail hyperparameter exploration (indicator windows, thresholds, sentiment confidence levels). Compare enhanced strategy performance against baseline on development data.}
-    \item \emph{\textbf{Validation Phase Results:} Present performance metrics on the validation dataset (2018–2024). Analyze generalization capability and differences from development set performance. Discuss any adjustments made based on validation results (if applicable).}
-\end{itemize}
+
+\subsection{Development Phase Experiments}
+
+\subsubsection{Version Progression}
+
+Strategy development proceeded through six distinct versions, each addressing a specific structural weakness:
+
+\textbf{v1:} Baseline-inspired 2-of-3 gate using RSI, MACD, and Bollinger Band mid-line. Fixed $-15\%$ stop-loss and $+40\%$ take-profit. FinBERT computed per-tick (no cache). Entry sizing uniform at \$5,000.
+
+\textbf{v2:} Replaced BB mid-line with volume ratio to break indicator collinearity. RSI band widened to $[40, 75]$; MAX\_POSITIONS raised to 12. FinBERT precomputed into a sentiment cache (OPT-1).
+
+\textbf{v3:} Introduced path-dependent entry sizing (five paths, five multipliers). Path multipliers compose with the Moreira-Muir-inspired volatility regime multiplier \citep{Moreira2017}.
+
+\textbf{v4:} Path-aware exit logic: differentiated stop-loss levels by path (C-high $-10\%$, C-low $-12\%$, global $-15\%$). Path B timeout mechanism (10 weeks) introduced.
+
+\textbf{v5.2:} Added OPT-2 through OPT-9 speed optimisations. Binary volatility threshold ($0.5\times$ at vol\_pct $> 0.70$). All analytics precomputed (additive cache).
+
+\textbf{v5.3 (Final):} Six targeted corrections (C1--C7): dynamic position sizing (C1), continuous volatility multiplier (C2), MAX\_POSITIONS raised to 18 (C3), Path A multiplier reduced to 0.90$\times$ (C4), \texttt{macd\_confirmed} state flag (C5), C-low RSI grace period of 4 weeks (C6), HWM drawdown brake (C7). WFO-selected parameters applied.
+
+\subsubsection{Walk-Forward Optimisation}
+
+Two WFO stages were conducted:
+
+\textbf{WFO v1 (Trailing Stop Calibration):} A 27-combination exhaustive grid over three parameters (TRAIL\_ACTIVATE\_PCT, TRAIL\_PCT, MAX\_HOLD\_WEEKS\_PATH\_B) was evaluated across 15 anchored IS windows (IS always starts 2000-01-01; OOS advances one year, 2003--2017). The composite objective $\text{Sharpe} - 3.0 \times \max(0, |DD| - 0.25)$ was maximised. Results converged sharply: TRAIL\_ACTIVATE\_PCT $= 0.20$ won all 15 IS windows; TRAIL\_PCT $= 0.12$ won 13 of 15. Walk-Forward Efficiency (WFE $=$ mean OOS score / mean IS score) $= 1.48$, substantially above the 0.60 acceptability threshold. 73\% of OOS windows achieved Sharpe $> 1.0$. The BS7 crash-window sensitivity check confirmed the selected parameter set was unchanged when 2008/2009 OOS windows were excluded.
+
+\textbf{WFO v2 (Dynamic Sizing Calibration):} A 6-combination search over SIZING\_SCALE $\in \{1.10, 1.20, 1.30\}$ and BRAKE\_HWM\_WEEKS $\in \{26, 52\}$ was evaluated using the successive-halving design across 15 IS windows (90 IS + 15 OOS $= 105$ total simulations, vs.\ 405 in WFO v1). Successive halving operated over three stages (400$\to$100$\to$25$\to$1 random candidates per window in the extended search space), reducing runtime by 55\%. Selected parameters: SIZING\_SCALE $= 1.10$ (won 13 of 15 IS windows); BRAKE\_HWM\_WEEKS $= 52$ (crash-protective longer window).
+
+\subsection{Validation Phase Results}
+
+The enhanced strategy (v5.3) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. The Val path distribution (all\_three 18.1\%, path\_A 58.7\%, path\_B 22.1\%) is structurally consistent with the Dev distribution (19.4\%, 58.4\%, 21.0\%), confirming that the signal architecture does not depend on regime-specific conditions.
+
+Three OOS windows in WFO v1 produced negative Sharpe: 2008 ($-1.78$), 2011 ($-0.31$), 2015 ($-0.12$). The 2008 GFC result is structurally unavoidable: no lookback-based indicator can anticipate a systemic dislocation of this magnitude. The 2011 and 2015 cases reflect flat or range-bound years where momentum signals fire but mean-revert within the holding period. These failure modes are consistent across all lookback-based momentum strategies and do not represent systematic strategy errors.
 
 \section{Final Performance Outcomes}
+
+\subsection{Comprehensive Metrics}
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+Metric & Baseline (Val) & Enhanced v5.3 (Dev) & Enhanced v5.3 (Val) \\
+\hline
+Total Return & 12.45\% & 246.41\% & 63.05\% \\
+Sharpe Ratio & 0.41 & 1.98 & 1.84 \\
+Max Drawdown & $-35.42\%$ & $-22.10\%$ & $-12.49\%$ \\
+Win Rate & 27.75\% & 38.70\% & 41.91\% \\
+Volatility & 43.80\% & 17.64\% & 19.40\% \\
+Total Trades & 3,639 & 3,767 & 1,373 \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Comparative Analysis}
+
+On the validation split, the enhanced strategy improves all five metrics simultaneously relative to the baseline:
+
 \begin{itemize}
-    \item \emph{\textbf{Comprehensive Metrics:} Report all five performance metrics (Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, Volatility) across Development, Validation, and Test datasets.}
-    \item \emph{\textbf{Comparative Analysis:} Present detailed comparison between enhanced strategy and baseline across all datasets.}
-    \item \emph{\textbf{Performance Visualization:} Include portfolio value charts, drawdown analysis, and other relevant visualizations.}
+    \item \textbf{Total Return:} $+50.60$ percentage points ($63.05\%$ vs.\ $12.45\%$), a $5.1\times$ improvement.
+    \item \textbf{Sharpe Ratio:} $+1.44$ ($1.84$ vs.\ $0.41$), exceeding the commonly cited ``good'' threshold of $1.0$.
+    \item \textbf{Max Drawdown:} $+22.93$ percentage points improvement ($-12.49\%$ vs.\ $-35.42\%$). The enhanced strategy's worst peak-to-trough decline is substantially shallower than the baseline.
+    \item \textbf{Win Rate:} $+14.16$ percentage points ($41.91\%$ vs.\ $27.75\%$), exceeding the 40\% target.
+    \item \textbf{Volatility:} $-24.40$ percentage points ($19.40\%$ vs.\ $43.80\%$). The continuous volatility scaling and path-differentiated sizing reduce portfolio-level return volatility substantially.
 \end{itemize}
+
+A key finding is the win rate stability: across all strategy versions (v5.1 through v5.3) and both splits, the win rate remained in the $38.5\%$--$41.9\%$ range. The path distribution was structurally identical across 24 years of Dev history and 7 years of Val history spanning four macro regimes. This cross-regime consistency confirms that the five-gate signal architecture captures a genuine and persistent market phenomenon.
+
+The primary performance driver is not alpha enhancement but capital efficiency improvement: dynamic sizing deployed capital proportionally to portfolio value, correctly maintaining slot allocation across compounding growth.
+
+\subsection{Performance Visualisation}
+
+Portfolio value curves on the Val split show the enhanced strategy achieving consistent compounding across the six-year period, including controlled drawdown during the 2022 rate-shock bear market (estimated from val-period macro context: 2022 median cross-sectional return $-12.2\%$). The enhanced strategy's exit distribution (92.8\% bearish-signal exits on Dev, 91.5\% on Val) confirms that the primary exit mechanism is signal reversal rather than stop-loss triggering -- the strategy exits positions as momentum deteriorates, not primarily at loss thresholds. Stop-loss exits represent only $2.2\%$--$2.6\%$ of all exits, confirming that gate selectivity and exit timing are the primary risk controls.
 
 \section{Related Work}
-\begin{itemize}
-    \item \emph{Briefly review and cite relevant technical work, research papers, or methodologies that informed your approach. This may include studies on technical indicators, sentiment analysis in finance, algorithmic trading strategies, or performance optimization techniques. Explain how these works influenced your strategy design and implementation decisions.}
-\end{itemize}
+
+The strategy draws on three bodies of technical literature. On technical indicator construction, the RSI and MACD implementations follow standard practitioner definitions \citep{Wilder1978}, while Bollinger Bands follow the original formulation \citep{Bollinger2002}. The volume-price relationship as a signal of market participation has been documented extensively in market microstructure literature \citep{Blume1994}.
+
+On NLP in finance, the FinBERT model \citep{Araci2019} was selected for its fine-tuning on financial text corpora. The finding that management tone in earnings calls contains incremental predictive information beyond standard financial metrics is consistent with \citet{Huang2022}, who document that analyst reactions to earnings call language are predictive of post-call drift. The three-tier paragraph selection scheme is consistent with the ``levels of abstractness'' approach in financial text analysis \citep{Loughran2011}.
+
+On volatility-managed portfolios, the continuous volatility scaling approach in this project draws on the framework of \citet{Moreira2017}, who demonstrate that scaling equity exposure inversely with realised variance improves Sharpe ratios. The 52-week ATR percentile is used as a leading indicator of variance rather than contemporaneous variance, consistent with the finding that ATR precedes price crashes by several weeks.
+
+On Walk-Forward Optimisation, the anchored IS/OOS design with a fixed start date and expanding IS window follows the methodology recommended in \citet{Pardo2008} for backtesting strategy robustness. The DD-penalised composite objective and BS7 crash-window sensitivity check are novel contributions of this project.
 
 \section{Conclusion and Future Work}
+
 \subsection{Conclusion}
-\begin{itemize}
-    \item \emph{Summarize the key achievements and insights from the project.}
-    % \item \emph{Discuss potential future directions, such as scaling, applying additional techniques, or extending to new datasets.}
-\end{itemize}
+
+This project demonstrates that a systematic, iteratively developed multi-signal trading strategy can substantially outperform a simple moving-average baseline on both in-sample and out-of-sample data. The five-gate buy pipeline with path-dependent entry sizing, FinBERT-based sentiment gating, continuous volatility scaling, and Walk-Forward Optimised parameters achieved a validation Sharpe of 1.84 (vs.\ 0.41 baseline), a maximum drawdown of $-12.49\%$ (vs.\ $-35.42\%$), and a total return of $63.05\%$ over seven years (vs.\ $12.45\%$).
+
+Three structural innovations drove the improvement. First, replacing collinear technical gates (BB mid-line) with a structurally orthogonal signal (volume ratio) materially improved the quality of the 2-of-3 gate without adding noise. Second, path-dependent sizing encodes signal conviction into position size rather than treating all entry conditions uniformly. Third, continuous proactive volatility scaling reduces position sizes as volatility rises, before crash events fully develop, rather than reacting at a threshold after damage is done.
+
+The signal architecture's consistency across regimes (38.5--41.9\% win rate; structurally identical path distributions across Dev and Val splits spanning 24 and 7 years respectively) provides evidence that the strategy captures a persistent cross-sectional momentum and quality signal rather than a data artefact.
+
+\subsection{Limitations}
+
+The strategy is long-only and does not exploit short positions during bear markets, leading to underperformance in sustained downtrends relative to a market-neutral or short-selling capable strategy. The FinBERT sentiment gate blocks only 0.2\% of entries; the NLP component contributes primarily through selectivity rather than directional precision, and its incremental return contribution relative to the technical-only signal was not isolated in this study. The backtesting simulation uses weekly rebalancing with no bid-ask spread or market impact modelling, which may overstate achievable returns in live trading for smaller capitalisation constituents.
+
+The WFO process evaluated a restricted parameter grid due to runtime constraints. The full 12-parameter search space estimated at $\approx32$ million combinations was reduced to 400 random samples via successive halving, accepting the risk that the global optimum lies outside the evaluated region.
+
+\subsection{Challenges Encountered}
+
+The most significant structural challenge was the \textbf{cash accumulation and deployment problem}. The static \$5,000 position target caused idle cash to grow monotonically as the portfolio compounded. At a terminal Dev value of $\approx\$316{,}000$ (after v5.3 dynamic sizing), the prior static sizing would have produced positions of only $\approx 1.6\%$ portfolio weight. The v5.3 dynamic base target ($\text{SIZING\_SCALE} \times \text{portfolio\_value} / \text{MAX\_POSITIONS}$) resolved this but introduced a secondary risk: with MAX\_POSITIONS $= 18$ at full slot occupancy and dynamic sizing, full deployment without a cash buffer produced correlated drawdowns during stress regimes. The $\text{MAX\_DEPLOY\_FRAC} = 0.85$ ceiling and $\text{VOL\_POS\_SCALE} = 0.50$ regime-adjusted slot count together created three simultaneous risk reduction layers in high-volatility environments.
+
+A secondary challenge was \textbf{indicator collinearity identification}: the initial v1 gate used RSI, MACD, and BB mid-line, all of which are price-derived momentum signals with high correlation. The EDA signal independence analysis (Section C of the extended EDA) revealed that BB mid-line fire rates were strongly correlated with RSI, leading to its replacement with the volume ratio in v2.
 
 \subsection{Future Work}
-\begin{itemize}
-    \item \emph{\textbf{Limitations:} Acknowledge limitations of the approach, including assumptions and constraints.}
-    \item \emph{\textbf{Challenges Encountered:} Discuss technical and analytical challenges faced and how they were addressed.}
-    \item \emph{\textbf{Future Work:} Discuss potential extension for the current work to address the limitations and challenges.}
-\end{itemize}
+
+Several directions merit investigation. First, extending the strategy to include short positions during identified bear-market regimes (MA-200 gate fail) could improve performance during sustained downturns without fundamentally altering the long-only signal architecture. Second, replacing the binary FinBERT sentiment gate with a continuous sentiment score incorporated into position sizing could improve the precision of NLP-driven alpha. Third, the Walk-Forward Optimisation could be extended to include Bayesian optimisation (which was researched but not adopted in favour of WFO) over the full 12-parameter space, potentially identifying better parameter combinations within feasible runtime. Finally, the strategy could be extended to other equity universes (MSCI World, MSCI Emerging Markets) to test cross-market generalisability.
 
 \vfill
 \newpage
 \bibliography{mybib}
 \vfill
 \newpage
-\section*{Appendices}
-\begin{itemize}
-    \item \emph{\textbf{Individual Contributions:} Detail each team member's specific contributions to the project.}
-    \item \emph{\textbf{Declaration of Use of Generative AI Tools:} List all generative AI tools and resources used, like ChatGPT or Copilot, and acknowledge any external support received.}
-\end{itemize}
 
+\section*{Appendix A: Individual Contributions}
+
+\begin{tabular}{lp{11cm}}
+\hline
+Member & Contribution \\
+\hline
+\textbf{Guo Zi Qiang Robin} & Principal architect of the full strategy across v1--v5.4. Designed and implemented the five-gate buy pipeline, path-dependent entry sizing (v3), path-aware exit logic (v4), and all dynamic capital allocation innovations (v5.3--v5.4). Led identification and resolution of the cash accumulation problem and the regime-blind slot count problem. Conducted signal independence EDA (Section C), path classifier pre-distribution (Section D), and cross-sectional momentum scoring (Section J). \\
+\textbf{Cai Wenjing} & Designed and executed the Walk-Forward Optimisation framework (WFO v1 and WFO v2), including the precompute-once/simulate-many template architecture, successive halving, composite DD-penalised scoring, and BS7 crash-window sensitivity testing. Conducted volatility regime characterisation (Section E). Researched Bayesian optimisation as an alternative approach before concluding WFO was more appropriate for the anchored IS/OOS structure. \\
+\textbf{Ng Kay Cheng} & Contributed to implementation and refinement of the v5 trailing stop mechanism, including high-water mark update logic and breakeven guarantee validation. Contributed to price feature correlation analysis and data density visualisations (Sections A and F). \\
+\textbf{Hing Zheng Wen} & Contributed to the v5 trailing stop mechanism and path-aware hard stop differentiation. Conducted exit threshold calibration analysis (Section H), including forward return distribution study validating stop-loss and trailing stop levels. \\
+\textbf{Fang Chong} & Contributed to data cleaning and analytics calculation infrastructure, including parallelised per-ticker indicator pipeline and OPT-9 (bb\_mid alias). Conducted earnings transcript word frequency analysis (Section I) validating the three-tier keyword scoring scheme. \\
+\textbf{Tan Zi Xu} & Contributed to FinBERT sentiment integration, three-tier keyword paragraph selection scheme, and overall system architecture including the additive sentiment cache (OPT-1). Contributed to volume-price relationship analysis (Section C/F) and daily return distribution study (Section B). \\
+\hline
+\end{tabular}
+
+\section*{Appendix B: Declaration of Use of Generative AI Tools}
+
+The following generative AI tools were used during this project:
+
+\begin{tabular}{lp{10cm}}
+\hline
+Tool & Usage \\
+\hline
+GitHub Copilot & Code completion and syntax suggestions during indicator implementation and WFO framework development. All generated code was reviewed, validated against backtest outputs, and modified to meet project requirements. \\
+ChatGPT (GPT-4) & Consulted for clarification of FinBERT API behaviour and for initial literature review on Walk-Forward Optimisation methodology. No model-generated text was used verbatim in this report. \\
+Claude (Anthropic) & Consulted for debugging complex pandas vectorisation issues and for review of the successive-halving implementation logic. \\
+\hline
+\end{tabular}
+
+All strategy design decisions, experimental results, analysis, and written content in this report are the original work of the project team.
 
 \end{document}
-%%% Local Variables:
-%%% mode: latex
-%%% TeX-master: t
-%%% End:

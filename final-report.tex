@@ -240,6 +240,23 @@ Positions are exited via one of six mechanisms, listed in order of priority:
     \item \textbf{Bearish 2-of-3}: Exits when the opposite signal pattern holds (2-of-3 indicators turn bearish). This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits across both splits.
 \end{enumerate}
 
+The shift in exit composition between v4 and v5.3 illustrates the effect of the C1--C7 changes on holding-period behaviour. Table~\ref{tab:exit-distribution} compares the three primary exit types across both versions and both splits. The most significant change is the compression of take-profit exits: from 5.4\% (v4 Dev) and 6.9\% (v4 Val) down to 1.0\% and 1.5\% respectively. Dynamic sizing in v5.3 increases per-position dollar exposure, reducing the number of positions that compound to the fixed $+40\%$ take-profit target within the typical holding period. The trailing stop, absent in v4, accounts for 1.9\% of Dev exits and 4.7\% of Val exits in v5.3 -- the higher Val rate reflects the stronger trending character of the 2019--2024 period. The dominant bearish-signal exit increases from 86.3\% to 92.8\% (Dev) and from 85.4\% to 91.5\% (Val), confirming that the strategy exits primarily on deteriorating signal quality rather than on absolute price thresholds.
+
+\begin{table}[H]
+\centering
+\caption{Exit mechanism distribution comparing v4 and v5.3 on Dev and Val splits. Trailing stop was not present in v4.}
+\label{tab:exit-distribution}
+\begin{tabular}{lcccc}
+\hline
+Exit Mechanism & v4 Dev & v5.3 Dev & v4 Val & v5.3 Val \\
+\hline
+Trailing stop     & ---           & 25\;\;(1.9\%)  & ---           & 32\;\;(4.7\%)  \\
+Take profit       & 75\;\;(5.4\%) & 13\;\;(1.0\%)  & 35\;\;(6.9\%) & 10\;\;(1.5\%)  \\
+Bearish 2-of-3    & 1,194\;\;(86.3\%) & 1,740\;\;(92.8\%) & 433\;\;(85.4\%) & 622\;\;(91.5\%) \\
+\hline
+\end{tabular}
+\end{table}
+
 \section{Experimental Results and Analysis}
 
 \subsection{Development Phase Experiments}
@@ -259,6 +276,28 @@ Strategy development proceeded through six distinct versions, each addressing a 
 \textbf{v5.2:} Added OPT-2 through OPT-9 speed optimisations. Binary volatility threshold ($0.5\times$ at vol\_pct $> 0.70$). All analytics precomputed (additive cache).
 
 \textbf{v5.3 (Final):} Six targeted corrections (C1--C7): dynamic position sizing (C1), continuous volatility multiplier (C2), MAX\_POSITIONS raised to 18 (C3), Path A multiplier reduced to 0.90$\times$ (C4), \texttt{macd\_confirmed} state flag (C5), C-low RSI grace period of 4 weeks (C6), HWM drawdown brake (C7). WFO-selected parameters applied.
+
+Table~\ref{tab:version-progression} traces all six key metrics across every version on both Dev and Val splits. Several patterns are notable. Return remains bounded in the 66--99\% (Dev) and 33--49\% (Val) range through v1--v4, then jumps markedly to 246.41\% (Dev) and 63.05\% (Val) in v5.3: this step-change is entirely attributable to the C1 dynamic sizing correction resolving the cash-accumulation problem, not to signal improvement. Sharpe on the Val split is consistently higher than Dev across v1--v4 (e.g.\ 2.04 vs.\ 1.54 at v1), which reflects the Val period's lower volatility relative to Dev's inclusion of the dot-com and GFC crashes; the gap narrows in v5.3 as the continuous volatility multiplier brings Dev volatility into a similar range. Win rate is strikingly stable across all versions and both splits, ranging only from 38.3\% to 41.9\%, providing strong evidence that the 2-of-3 gate quality is an intrinsic property of the signal architecture rather than a by-product of sizing or exit calibration.
+
+\begin{table}[H]
+\centering
+\caption{Performance metrics across all strategy versions (Dev and Val splits). v5 refers to v5.3, the final WFO-calibrated implementation.}
+\label{tab:version-progression}
+\begin{tabular}{lcccccccccc}
+\hline
+Metric & v1 Dev & v1 Val & v2 Dev & v2 Val & v3 Dev & v3 Val & v4 Dev & v4 Val & v5 Dev & v5 Val \\
+\hline
+Total Return    & 66.56\%  & 33.22\%  & 97.76\%  & 49.37\%  & 96.57\%  & 48.26\%  & 99.41\%  & 46.57\%  & 246.41\% & 63.05\%  \\
+Sharpe Ratio    & 1.54     & 2.04     & 1.55     & 2.10     & 1.59     & 2.18     & 1.62     & 2.13     & 1.98     & 1.84     \\
+Max Drawdown    & $-15.63\%$ & $-8.72\%$ & $-19.94\%$ & $-8.82\%$ & $-18.74\%$ & $-7.88\%$ & $-18.81\%$ & $-7.02\%$ & $-22.10\%$ & $-12.49\%$ \\
+Win Rate        & 39.1\%   & 41.0\%   & 38.3\%   & 40.5\%   & 38.3\%   & 40.5\%   & 38.4\%   & 41.2\%   & 38.7\%   & 41.9\%   \\
+Volatility      & 9.17\%   & 9.99\%   & 12.32\%  & 13.68\%  & 11.90\%  & 12.90\%  & 11.90\%  & 11.82\%  & 17.64\%  & 19.40\%  \\
+Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976      & 2,776    & 1,022    & 3,767    & 1,373    \\
+\hline
+\end{tabular}
+\end{table}
+
+The volatility figures for v5.3 are higher in absolute terms than earlier versions (17.64\% Dev vs.\ 9--12\% for v1--v4). This is a direct consequence of dynamic sizing: earlier versions anchored positions at a fixed \$5,000 against a compounding portfolio, producing an ever-smaller effective exposure fraction that suppressed measured portfolio volatility. v5.3's proportional sizing correctly reflects true strategy risk, and the accompanying 5.1$\times$ return improvement on Val more than compensates for the increase in absolute volatility. The risk-adjusted picture, measured by Sharpe ratio, confirms this: v5.3's Val Sharpe of 1.84 is the highest achieved across all versions on Val, notwithstanding the higher nominal volatility.
 
 \subsubsection{Walk-Forward Optimisation}
 

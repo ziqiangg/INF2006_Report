@@ -103,7 +103,7 @@ Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 
 \subsection{Performance Measurements}
 
-The WFO precomputation step completes in approximately 30--60 minutes on a T4 GPU. A single simulation run completes in 2--5 minutes, enabling the full 90-simulation IS grid to run in 30--60 minutes via \texttt{joblib} parallelisation. The WFO v2 successive-halving design ($400 \to 100 \to 25 \to 1$ candidates per window) reduces the evaluation schedule by 55\% relative to exhaustive evaluation \citep{Li2018}.
+The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The WFO v2 successive-halving design ($400 \to 100 \to 25 \to 1$ candidates per window) reduces the evaluation schedule by 55\% relative to exhaustive evaluation \citep{Li2018}.
 
 \section{Strategy Enhancement Methodology}
 

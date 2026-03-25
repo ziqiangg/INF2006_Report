@@ -83,7 +83,7 @@ The low volume-ratio fire rate (22.9\%) relative to RSI and MACD confirms the st
 
 \subsection{Earnings Transcript Analysis}
 
-Of the 9,675 processed Dev earnings transcripts, 99.4\% exceed FinBERT's 512-token limit (median transcript length: 54,718 characters; maximum: 220,246 characters). Direct truncation to the first 1,200 characters would systematically discard forward-looking guidance sections that typically appear in the latter portion of earnings calls. The three-tier keyword paragraph selection scheme addresses this: paragraphs containing Tier-3 guidance keywords (\textit{outlook}, \textit{guidance}, \textit{forecast}) are prioritised (weight $3\times$), followed by Tier-2 financial keywords (weight $2\times$), and Tier-1 reporting boilerplate (weight $1\times$). Tier-3 terms appear in 70.3\% of transcripts at a median frequency of 2.95 per transcript, but carry the highest signal value due to their forward-looking content -- this frequency-value inversion justifies the tier weighting \citep{Loughran2011}.
+Of the 9,675 processed Dev earnings transcripts, 99.4\% exceed FinBERT's 512-token limit (median transcript length: 54,770 characters; maximum: 220,246 characters). Direct truncation to the first 1,200 characters would systematically discard forward-looking guidance sections that typically appear in the latter portion of earnings calls. The three-tier keyword paragraph selection scheme addresses this: paragraphs containing Tier-3 guidance keywords (\textit{outlook}, \textit{guidance}, \textit{forecast}) are prioritised (weight $3\times$), followed by Tier-2 financial keywords (weight $2\times$), and Tier-1 reporting boilerplate (weight $1\times$). Tier-3 terms appear in 70.3\% of transcripts at a median frequency of 2.95 per transcript, but carry the highest signal value due to their forward-looking content -- this frequency-value inversion justifies the tier weighting \citep{Loughran2011}.
 
 Across 18,209 processed transcripts (Dev + Val combined), the resulting FinBERT sentiment score (positive $-$ negative probability) has a mean of $+0.0224$ and a median of $+0.0165$, consistent with the well-documented positive bias in management earnings call language \citep{Price2012}. The entry-blocking threshold of $-0.25$ filters only the most negative 0.2\% of transcripts, functioning as a coarse gate against explicitly bearish communications rather than as a precision alpha signal.
 
@@ -259,7 +259,7 @@ The shift in exit composition between v4 and v5.3 illustrates the effect of the 
 
 \begin{table}[H]
 \centering
-\caption{Exit mechanism distribution comparing v4 and v5.3 on Dev and Val splits. Trailing stop was not present in v4.}
+\caption{Exit mechanism distribution comparing v4 and v5.3 on Dev and Val splits. Trailing stop & finbert bearish FinBERT sentiment were not present in v4, bearish signals and FinBERT sentiment are collapsed into Bearish 2-of-3.}
 \label{tab:exit-distribution}
 \begin{tabular}{lcccc}
 \hline
@@ -303,8 +303,8 @@ Table~\ref{tab:version-progression} traces all six key metrics across every vers
 \hline
 Metric & v1 Dev & v1 Val & v2 Dev & v2 Val & v3 Dev & v3 Val & v4 Dev & v4 Val & v5 Dev & v5 Val \\
 \hline
-Total Return    & 66.56\%  & 33.22\%  & 97.76\%  & 49.37\%  & 96.57\%  & 48.26\%  & 99.41\%  & 46.57\%  & 246.41\% & 63.05\%  \\
-Sharpe Ratio    & 1.54     & 2.04     & 1.55     & 2.10     & 1.59     & 2.18     & 1.62     & 2.13     & 1.98     & 1.84     \\
+Total Return    & 66.56\%  & 33.22\%  & 97.76\%  & 49.37\%  & 96.57\%  & 48.26\%  & 99.41\%  & 46.57\%  & 247.65\% & 63.05\%  \\
+Sharpe Ratio    & 1.54     & 2.04     & 1.55     & 2.10     & 1.59     & 2.18     & 1.62     & 2.13     & 1.99     & 1.84     \\
 Max Drawdown    & $-15.63\%$ & $-8.72\%$ & $-19.94\%$ & $-8.82\%$ & $-18.74\%$ & $-7.88\%$ & $-18.81\%$ & $-7.02\%$ & $-22.10\%$ & $-12.49\%$ \\
 Win Rate        & 39.1\%   & 41.0\%   & 38.3\%   & 40.5\%   & 38.3\%   & 40.5\%   & 38.4\%   & 41.2\%   & 38.7\%   & 41.9\%   \\
 Volatility      & 9.17\%   & 9.99\%   & 12.32\%  & 13.68\%  & 11.90\%  & 12.90\%  & 11.90\%  & 11.82\%  & 17.64\%  & 19.40\%  \\
@@ -339,8 +339,8 @@ Three OOS windows in WFO v1 produced negative Sharpe: 2008 ($-1.78$), 2011 ($-0.
 \hline
 Metric & Baseline (Val) & Enhanced v5.3 (Dev) & Enhanced v5.3 (Val) \\
 \hline
-Total Return & 12.45\% & 246.41\% & 63.05\% \\
-Sharpe Ratio & 0.41 & 1.98 & 1.84 \\
+Total Return & 12.45\% & 247.65\% & 63.05\% \\
+Sharpe Ratio & 0.41 & 1.99 & 1.84 \\
 Max Drawdown & $-35.42\%$ & $-22.10\%$ & $-12.49\%$ \\
 Win Rate & 27.75\% & 38.70\% & 41.91\% \\
 Volatility & 43.80\% & 17.64\% & 19.40\% \\

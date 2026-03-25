@@ -1,0 +1,73 @@
+hi people creating the report, if you are unsure what to talk about please refer to this checklist. tick off the things that are completed.
+
+PLEASE ENSURE YOU CONFIRM THESE THINGS EXIST WITH THE WFOENHANCEDSTRAT AND THE SUBMISSION ENHANCEDSTRAT BEFORE WRITING IT AS ACTUAL FEATURE IN THE report
+
+THE MAIN GIST: based on various signal combinations, there are different entries and exits
+
+# entry signal architecture
+
+## signals (refers to an indicator or alert that suggests when to buy, sell or hold)
+1. momentum filter MA-200 gate (only enter positions when price is above the 200-day moving average, restricting entries to confirmed long-term uptrends and avoiding bear market exposure)
+2. Relative Strength Index RSI-14 (momentum oscillator requiring RSI between 40-75 at entry --above the oversold zone (trend established) but below overbought territory)
+3. MACD histogram (difference between the MACD line and signal line; positive histogram confirms momentum accerleration from fast EMA (12) outpacing slow EMA (26))
+4. Volume ratio vol / MA-20-vol (Current volume divided by its 20-day average; ≥1.2× required as Gate 2 confirmation that price movement has genuine market participation behind it.)
+
+signal 1 acts as a first check, if not able to pass don't consider at all (i think).
+
+then signal 1 passes, move to 2 out of 3 signal gate combination check (RSI, MACD, volume). each of the 2 out of 3 signal combination is apped to a labelled path encoding a distinct market hypothesis (accumulation, momentum, dip-buy etc) carrying different conviction levels and different exit rules.
+essentially, each entry route has its specific parameters and exit routes.
+
+entry logic is structured as five ordered gates (trend -> signals -> sentiment -> position cap -> correlation) each gate fails fast with a HOLD return before reaching the next, minimising unnecessary computation
+
+## NLP / sentiment
+1. FinBERT sentiment analysis (classifies into positive / negative / neutral and a probability score (i think))
+2. 3-tier keyword paragraph selection before FinBERT (each earning transcipt scores each paragraph using weighted keyword tiers, then the most informative paragraph is input to finbert analysis)
+3. finbert runs once per (tickle, date) pair across the full dataset. the subsequent lookups from cache are O(1) dict reads. additive in the sense that it does not rerun across dev and val splits but adds onto the same cache instance
+4. sentiment as a blocking gate. if sentiment score is <-0.25, it blocks the entry. However, this does not affect the dynamic position sizing feature.
+
+## position sizing (process of determining how much capital to allocate to a single trade to manage risk and protect your trading account.)
+1. dynamic base target (C1). the position size is computed as `SIZING_SCALE X portfolio-value / MAX_POSITIONS each week rather than a fixed dollar amount. this ensures that positions scale proportionately as the portfolio compounds
+2. path-dependent multipliers (C3/C4) each entry path carries a conviction multiplier (1.0 x for all 3 signals, Path A is 0.5x multiplier). essentially, different combination of signals will have different multiplier applied to position size
+3. ***Moreira-Muir variance timing (vol_mult (C2)) continuous position-size multiplier max(0.4, 1-0.6xvol_pct) using the 52-week ATR percentile rank. This deleverages the trading strategy in times of volatility rise. essentially, if period of high volatility detected, reduce position size
+4. regime-aware position ceiling (regime_max C1) dynamically adapts number of positions / slots in high-volatility markets. in high-vol, reduces slot count and position sizing
+5. MAX_DEPLOY_FRAC deployment cap. THIS IS THE REASON why there is a permanant cash buffer (15%) at full slot occupancy, preventing 100% cash deployment and ensuring dry powder during correlated drawdowns. dry powder means liquid cash to cover for emergencies
+
+## RISK management
+1. path-aware hard stops. stop loss refers to automatic selling of ticker when it reaches predetermined price. stop-loss thresholds are differentiated by entry path: ~15% global, 12% C-low (dip-buy with small float), -10% C-high (entry near local high). tighther stops where entry conviction is lower or entry price is elevated
+2. Trailing stop (WFO calibrated) activates once the position reaches +20% (breakeven-safe), then trails 12% below the running-high water mark; replaces a fixed take-profit ceiling to let winners run along trending moves. essentially Buy stocks, hold until they're 20% up (so you're safely past break-even), then automatically sell if they drop 12% from whatever their highest price was during the trade, letting big winners run while cutting losses.
+3. rolling HWM (Highest Water Mark) drawdown (C7) tiered sizing multiplier (1->0.75->0.5->0.25) applied to new entries when portfolio has drawn down from its 52-week rolling peak, uses rolling rather than all-time HWM so the brake releases during prolonged downturns without triggering a permanent halt (When your portfolio hits a new high point, you can invest with full size (100%). But as it falls from that peak, you gradually reduce your bet)
+4. Cross-asset correlation gate (Gate 4b) blocks new entries in tickers with Pearson correlation > 0.7 to any currently held position over a 60-day lookback window, purpose is to diversify
+5. 52 week rolling ATR percentile regime. A universe mean ATR rakned against its 52-week history. the resulting vol_pct drives both vol_mult and regime_max providing a forwawrd looking stress indicator before price drawdowns
+6. backstop take-profit (+80%) this is a hard ceiling exit (if not trail stop), this situation occurs rarely when there are extreme gains and guards against ticker movement that exceed the trailing stop's reaches
+
+## exit logic
+1. Bearish 2-of-3 trend-break exit. Mirrors the entry gate structure on the sell side: exit if two of (RSI < 35, MACD histogram < 0, price < MA-50) fire simultaneously, requiring multiple confirming signals before liquidating.
+2. Path B accumulation timeout (C5) Path B (RSI + volume, no MACD) represents an accumulation hypothesis; if MACD has not turned positive within 10 weeks, the hypothesis has failed and the position is exited. Suppressed if MACD later confirms (macd_confirmed flag).
+3. C-low RSI grace period (C6) C-low entries have RSI 35–40 by construction — 5 points from the RSI-35 bearish exit threshold. Suppresses the RSI leg of the bearish 2-of-3 for the first 4 weeks, allowing the dip-buy recovery thesis a fair window before the exit gate activates.
+4. macd_confirmed flag (C5) Per-position boolean set when MACD first turns positive after a Path B entry; once set, the accumulation timeout is permanently suppressed and exit is governed only by bearish 2-of-3, separating "never confirmed" from "confirmed then deteriorated".
+
+## WFO
+1. Anchored expanding IS windows. 15 windows where IS always starts 2000-01-01 and OOS advances one year (2003→2017); anchoring ensures every IS period includes the full available history including the dot-com crash.
+2. Random search with rejection sampling. 400 candidates drawn per window by uniformly sampling the 12-parameter space and rejecting combinations that violate the trailing stop breakeven guarantee or MIN_POSITIONS ≥ CEIL constraint; scales to 32M-combination spaces where exhaustive grid search is infeasible. 400 candidates drawn per window by uniformly sampling the 12-parameter space and rejecting combinations that violate the trailing stop breakeven guarantee or MIN_POSITIONS ≥ CEIL constraint; scales to 32M-combination spaces where exhaustive grid search is infeasible
+3. successive halving (SHA) Three-stage pruning (400→100→25→1) on increasing fractions of the IS schedule (25%→55%→100%); candidates are eliminated after each stage using the composite score, saving ~55% of compute versus running all candidates to full IS completion.
+4. Composite DD-penalised scoring score = Sharpe − 3.0 × max(0, |DD| − 0.25) penalises drawdown beyond 25% at a 3× rate; used for ranking within each successive halving stage to balance return and drawdown objectives.
+5. Frequency-based final parameter selection. The recommended parameter set is the one that wins the most IS windows (rather than highest average score), explicitly rewarding consistency across diverse market regimes over outlier performance.
+6. DD disqualifier for frequency counting A candidate can advance through halving stages on composite score, but only enters the frequency count if its full-IS run has max_dd ≥ −0.25; separates ranking logic from selection eligibility.
+7. Walk Forward Efficiency (WFE) Mean OOS composite score / mean IS composite score; target ≥ 0.60 indicates that IS optimisation is generalising rather than fitting noise. Original WFO v1 achieved WFE = 1.48.
+8. BS7 crash-window sensitivity test Re-runs frequency selection with 2008/2009 OOS windows excluded; if the winner changes, GFC years are distorting parameter selection and the result may not generalise to non-crisis regimes
+9. Reasonableness gate Selected parameters run on full dev 2000–2017; Sharpe must clear a minimum threshold (1.80 for v5.4 dynamic sizing) before val is touched, guarding against parameter sets that exploit WFO objective overfitting.
+10. Breakeven guarantee constraint All trailing stop parameter combinations enforce (1 + TRAIL_ACTIVATE_PCT) × (1 − TRAIL_PCT) ≥ 1.0 by construction, ensuring the trailing stop can never exit at a loss once it has activated.
+
+## infrastructure
+1. Precompute-once / simulate-many template FinBERT inference and analytics computation run once per IS window; 400 candidate clones share the read-only caches, with only the lightweight portfolio loop rerunning per candidate — eliminating 8M+ redundant DataFrame operations.
+2. Additive cache design (OPT-1/2/10) Sentiment cache, analytics bisect lookup, and earnings bisect lookup are extended rather than rebuilt when val evaluate() runs on the same instance; dev entries are preserved and val entries appended, eliminating all repeated preprocessing across splits.
+3. Bisect binary-search lookups (OPT-7/10) Per-ticker sorted date lists enable O(log N) point-in-time lookups for both earnings transcripts and analytics records, replacing O(N) DataFrame boolean masks called 297K times per dev evaluation.
+4. Parallelised per-ticker indicator pipeline Technical indicators computed across 337 tickers in parallel via joblib Parallel with ThreadPoolExecutor (prefer='threads', n_jobs=4); each ticker is fully independent so no synchronisation is needed.
+5. Instance-level param injection (setattr) WFO candidate parameters are injected as instance attributes that shadow class-level defaults; each clone operates with its own parameter set without modifying the shared template or requiring separate subclasses.
+6. Vectorised numpy rolling pct rank (OPT-5) Pure Python rolling loop replaced with numpy matrix broadcasting — past values indexed via a (n_windows × window_size) index array and compared in a single vectorised operation; 4× faster.
+7. Pairwise correlation early exit (OPT-11) Gate 4b replaced DataFrame.corr() (full N×N matrix) with Series.corr() iterating over held tickers only, returning HOLD immediately on the first violation; O(n_held × lookback) instead of O(n_held² × lookback)
+8. Vectorized price dict bypass (Fix 4) TradingSimulation._build_lookups() (iterrows over 1.25M rows, ~25s) replaced with a vectorized dict(zip(zip(tickers, dates), closes)) built in < 1s; Portfolio used directly, maintaining identical return format.
+9. Transcript cap with graceful degradation (Fix 1) MAX_TRANSCRIPTS_PER_RUN = 2000 hard caps FinBERT per evaluate() call; uncapped entries return None from llm_analysis, which is semantically equivalent to "no recent earnings" — Gate 3 passes rather than errors.
+
+
+

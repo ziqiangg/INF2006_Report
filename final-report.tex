@@ -97,6 +97,21 @@ Pairwise correlation analysis across a 30-ticker sample (rolling 60-day window) 
 
 A direct comparison of the Dev and Val splits confirms near-identical statistical properties at the universe level: annualised return 19.92\% (Dev) vs.\ 17.00\% (Val), annualised volatility 38.01\% vs.\ 37.62\%, raw Sharpe 0.524 vs.\ 0.452. Despite similar aggregate statistics, the Val split contains episodes without historical precedent in the Dev period, including the COVID-19 market crash (S\&P $-34\%$ in 33 days, February--March 2020), the fastest Fed rate-hike cycle since 1980 (2022), and the SVB regional banking crisis (2023). The path distribution of the enhanced strategy across these regimes (Val: all-three 18.1\%, path-A 58.7\%, path-B 22.1\%) is structurally identical to the Dev distribution (19.4\%, 58.4\%, 21.0\%), confirming that the signal architecture captures a persistent cross-market phenomenon rather than a regime-specific artefact.
 
+\subsection{Key Findings and Strategy Implications}
+
+The extended EDA in Cell 12 was used to move beyond baseline descriptive checks and to directly inform hypothesis formation and strategy design. The main findings are summarised below.
+
+\begin{itemize}
+    \item \textbf{Coverage and quality are sufficient for indicator reliability.} Data-quality diagnostics show no duplicate (ticker, date) rows, zero OHLC sanity violations, and no forward-fill gaps above the 5-day tolerance. Only three tickers fail the 252-day history requirement and are removed. This supports robust computation of long lookback features (MA-200, ATR percentile, rolling correlations) and motivated strict thin-ticker filtering before analytics.
+    \item \textbf{Return tails are extreme but sparse.} The return distribution is fat-tailed with high kurtosis and positive skew, while only a very small fraction of observations exceed the $\pm 30\%$ clip threshold. This led to return clipping as a targeted outlier-control step that protects rolling indicators without materially distorting the signal universe.
+    \item \textbf{Indicator roles are complementary rather than redundant.} In the Gate-1 universe, RSI is frequent (weak discriminator), MACD is moderately selective, and volume-ratio is the most selective gate. This finding motivated replacing the Bollinger mid-line gate with volume confirmation and using a 2-of-3 entry design to combine momentum and participation information.
+    \item \textbf{Transcript processing must prioritise information density.} Transcript-length analysis shows almost all earnings calls exceed FinBERT's direct single-pass limit, and keyword-frequency analysis confirms guidance language has the strongest decision relevance. This motivated the three-tier keyword paragraph selection and pre-inference truncation policy used before sentiment scoring.
+    \item \textbf{Volatility and correlation are regime-dependent risk drivers.} Volatility-regime and correlation diagnostics show structural shifts during stress periods, while Dev-vs-Val regime plots confirm that aggregate moments can look similar despite different macro paths. This motivated continuous ATR-percentile position scaling, regime-aware capacity controls, and correlation-threshold gating.
+    \item \textbf{Cross-sectional structure is stable enough for path-based sizing.} Path pre-distribution and momentum cross-section diagnostics show consistent relative proportions of path types across windows, supporting path-dependent multipliers and the hypothesis that the signal architecture captures persistent cross-sectional behaviour rather than one-off period effects.
+\end{itemize}
+
+Where sampling was used for computational tractability (for example, 30-ticker indicator/correlation views), the same qualitative relationships were validated against broader split-level summary statistics before being promoted into production strategy rules.
+
 \section{Data Cleaning and Preparation}
 
 \subsection{Thin-Ticker Removal}
@@ -283,6 +298,7 @@ Table~\ref{tab:version-progression} traces all six key metrics across every vers
 \centering
 \caption{Performance metrics across all strategy versions (Dev and Val splits). v5 refers to v5.3, the final WFO-calibrated implementation.}
 \label{tab:version-progression}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccccc}
 \hline
 Metric & v1 Dev & v1 Val & v2 Dev & v2 Val & v3 Dev & v3 Val & v4 Dev & v4 Val & v5 Dev & v5 Val \\
@@ -295,6 +311,7 @@ Volatility      & 9.17\%   & 9.99\%   & 12.32\%  & 13.68\%  & 11.90\%  & 12.90\%
 Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976      & 2,776    & 1,022    & 3,767    & 1,373    \\
 \hline
 \end{tabular}
+}
 \end{table}
 
 The volatility figures for v5.3 are higher in absolute terms than earlier versions (17.64\% Dev vs.\ 9--12\% for v1--v4). This is a direct consequence of dynamic sizing: earlier versions anchored positions at a fixed \$5,000 against a compounding portfolio, producing an ever-smaller effective exposure fraction that suppressed measured portfolio volatility. v5.3's proportional sizing correctly reflects true strategy risk, and the accompanying 5.1$\times$ return improvement on Val more than compensates for the increase in absolute volatility. The risk-adjusted picture, measured by Sharpe ratio, confirms this: v5.3's Val Sharpe of 1.84 is the highest achieved across all versions on Val, notwithstanding the higher nominal volatility.
@@ -305,7 +322,7 @@ Two WFO stages were conducted:
 
 \textbf{WFO v1 (Trailing Stop Calibration):} A 27-combination exhaustive grid over three parameters (TRAIL\_ACTIVATE\_PCT, TRAIL\_PCT, MAX\_HOLD\_WEEKS\_PATH\_B) was evaluated across 15 anchored IS windows (IS always starts 2000-01-01; OOS advances one year, 2003--2017). The composite objective $\text{Sharpe} - 3.0 \times \max(0, |DD| - 0.25)$ was maximised. Results converged sharply: TRAIL\_ACTIVATE\_PCT $= 0.20$ won all 15 IS windows; TRAIL\_PCT $= 0.12$ won 13 of 15. Walk-Forward Efficiency (WFE $=$ mean OOS score / mean IS score) $= 1.48$, substantially above the 0.60 acceptability threshold. 73\% of OOS windows achieved Sharpe $> 1.0$. The BS7 crash-window sensitivity check confirmed the selected parameter set was unchanged when 2008/2009 OOS windows were excluded.
 
-\textbf{WFO v2 (Dynamic Sizing Calibration):} A 6-combination search over SIZING\_SCALE $\in \{1.10, 1.20, 1.30\}$ and BRAKE\_HWM\_WEEKS $\in \{26, 52\}$ was evaluated using the successive-halving design across 15 IS windows (90 IS + 15 OOS $= 105$ total simulations, vs.\ 405 in WFO v1). Successive halving operated over three stages (400$\to$100$\to$25$\to$1 random candidates per window in the extended search space), reducing runtime by 55\%. Selected parameters: SIZING\_SCALE $= 1.10$ (won 13 of 15 IS windows); BRAKE\_HWM\_WEEKS $= 52$ (crash-protective longer window).
+\textbf{WFO v2 (Dynamic Sizing Calibration):} We evaluated a 6-combination grid over sizing scale (\texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$) and brake lookback window (\texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$). The successive-halving design was run across 15 IS windows, for 90 IS + 15 OOS $= 105$ total simulations (vs.\ 405 in WFO v1). In the extended random-search space, each window used three halving stages: $400 \to 100 \to 25 \to 1$, reducing runtime by 55\%. The selected parameters were \texttt{SIZING\_SCALE} $= 1.10$ (won 13 of 15 IS windows) and \texttt{BRAKE\_HWM\_WEEKS} $= 52$ (more crash-protective).
 
 \subsection{Validation Phase Results}
 

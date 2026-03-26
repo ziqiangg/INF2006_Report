@@ -262,7 +262,7 @@ An additive cache accumulates FinBERT results keyed by (ticker, quarter). The ca
 \subsubsection{Sentiment Gate Calibration (C8)}
 \label{sec:sentiment-gate}
 
-The SENTIMENT\_BLOCK threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3. On the full Dev corpus ($N=9{,}675$), the CPU-inference score distribution has mean $0.0106$, standard deviation $0.0372$, placing the $-0.10$ threshold at $-3.0\sigma$ below the mean. The block rate is 0.04\%, confirming that Gate~3 fires only on extreme negative-tail transcripts. The C9 mechanism (Section~\ref{sec:exit-logic}) converts the broader negative-score region (46.4\% of scored entries) into faster exit signals rather than entry blocks.
+The SENTIMENT\_BLOCK threshold was recalibrated from $-0.25$ to $-0.10$ in the strategy's final iteration v5.3. On the full Dev corpus ($N=9{,}675$), the CPU-inference score distribution has mean $0.0106$, standard deviation $0.0372$, placing the $-0.10$ threshold at $-3.0\sigma$ below the mean. The block rate is 0.04\%, confirming that Gate~3 fires only on extreme negative-tail transcripts. The C9 mechanism (Section~\ref{sec:exit-logic}) converts the broader negative-score region (46.4\% of scored entries) into faster exit signals rather than entry blocks.
 
 \begin{figure}[H]
 \centering

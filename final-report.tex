@@ -32,7 +32,7 @@
 
 \subsection{Project Overview}
 
-This project develops and enhances an algorithmic trading strategy applied to S\&P 500 constituent stocks, using historical market data spanning 2000--2024 and earnings call transcripts processed via the FinBERT financial language model \citep{Araci2019}. The core objective is to iterate beyond a simple moving-average baseline toward a multi-signal, risk-managed strategy that achieves strong risk-adjusted returns across both in-sample and out-of-sample evaluation periods.
+This project develops and enhances an algorithmic trading strategy applied to S\&P 500 constituent stocks, using historical market data spanning 2000--2024 and earnings call transcripts processed via the FinBERT financial language model \citep{Araci2019}. The core objective is to iterate beyond a simple moving-average baseline toward a multi-signal, risk-managed strategy that achieves strong risk-adjusted returns across both in-sample (IS) and out-of-sample (OOS) evaluation periods.
 
 The strategy integrates three categories of signal: (i) price-based technical indicators capturing momentum, mean-reversion, and market participation; (ii) natural language processing of earnings call transcripts to extract forward-looking management sentiment; and (iii) volatility regime awareness to dynamically scale position sizes and portfolio exposure. All strategy parameters were calibrated using a two-stage Walk-Forward Optimisation (WFO) process rather than single-period in-sample fitting, to reduce the risk of overfitting to any specific market regime.
 
@@ -120,7 +120,7 @@ Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 % The CPU deployment version (Cell 30) uses 500 chars / 128 tokens / batch 16. Both are correct
 % for their respective environments: GPU for WFO precomputation, CPU for leaderboard deployment.
 
-\textbf{OPT-5 through OPT-9: Simulation Loop Micro-optimisations.} Vectorised percentile rank computation, cached weekly timestamps, precomputed rolling return windows, early-exit price checks, and BB mid-line aliased to MA-20 (OPT-9).
+\textbf{OPT-5 through OPT-9: Simulation Loop Micro-optimisations.} Vectorised percentile rank computation (OPT-5), cached weekly timestamps (OPT-6), precomputed rolling return windows (OPT-7), early-exit price checks (OPT-8), and BB mid-line aliased to MA-20 (OPT-9).
 
 \subsection{Performance Measurements}
 

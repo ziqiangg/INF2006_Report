@@ -16,7 +16,7 @@
 \newcommand{\cidSix}{2402012}
 
 \newcommand{\reporttype}{Group Project Assignment 2}
-\bibliographystyle{plain}
+\bibliographystyle{plainnat}
 
 \input{includes}
 \input{notation}
@@ -38,7 +38,7 @@ The strategy integrates three categories of signal: (i) price-based technical in
 
 \subsection{Motivation and Background}
 
-Algorithmic trading strategies have become foundational in modern finance, enabling systematic and emotionally neutral decision-making across large asset universes \citep{Lopez2018}. Complementing quantitative signals, NLP applied to earnings call transcripts extracts forward-looking information---including management guidance, risk disclosures, and confidence tone---that is structurally absent from price time series alone \citep{Huang2022}. Together with scalable big data analytics for processing millions of price records and thousands of unstructured text documents \citep{Manyika2011}, these technologies enable a hybrid strategy architecture combining systematic quant methods with the informational depth of text analytics.
+Algorithmic trading strategies have become foundational in modern finance, enabling systematic and emotionally neutral decision-making across large asset universes \citep{Lopez2018}. Complementing quantitative signals, NLP applied to earnings call transcripts extracts forward-looking information---including management guidance, risk disclosures, and confidence tone---that is structurally absent from price time series alone \citep{Huang2014}. Together with scalable big data analytics for processing millions of price records and thousands of unstructured text documents \citep{Manyika2011}, these technologies enable a hybrid strategy architecture combining systematic quant methods with the informational depth of text analytics.
 
 \subsection{Objectives}
 
@@ -356,7 +356,7 @@ The exit distribution (92.7\% bearish-signal exits on Dev, 91.5\% on Val) confir
 
 The strategy draws on three bodies of technical literature. On technical indicator construction, the RSI and MACD implementations follow standard practitioner definitions \citep{Wilder1978}, while Bollinger Bands follow the original formulation \citep{Bollinger2002}. The volume-price relationship as a signal of market participation has been documented in market microstructure literature \citep{Blume1994}.
 
-On NLP in finance, the FinBERT model \citep{Araci2019} was selected for its fine-tuning on financial text corpora. The finding that management tone in earnings calls contains incremental predictive information is consistent with \citet{Huang2022}. The three-tier paragraph selection scheme aligns with the ``levels of abstractness'' approach in financial text analysis \citep{Loughran2011}.
+On NLP in finance, the FinBERT model \citep{Araci2019} was selected for its fine-tuning on financial text corpora. The finding that management tone in earnings calls contains incremental predictive information is consistent with \citet{Huang2014}. The three-tier paragraph selection scheme aligns with the ``levels of abstractness'' approach in financial text analysis \citep{Loughran2011}.
 
 On volatility-managed portfolios, the continuous volatility scaling approach draws on \citet{Moreira2017}, who demonstrate that scaling equity exposure inversely with realised variance improves Sharpe ratios. The 52-week ATR percentile is used as a leading indicator of variance rather than contemporaneous variance.
 

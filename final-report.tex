@@ -207,9 +207,12 @@ Four indicators drive the buy gates:
     \item \textbf{Volume Ratio}: Current week's volume divided by the 20-period average \citep{Blume1994}. A ratio $\geq 1.2\times$ indicates above-average market participation, confirming that the price move is supported by broad trading activity. This replaced the Bollinger Band mid-line gate in v2 to break indicator collinearity (Section~\ref{sec:version-progression}).
 \end{itemize}
 
-\paragraph{Exit indicator.}
+\paragraph{Exit indicators.}
+Three technical indicators are used in exit logic (Section~\ref{sec:exit-logic}):
 \begin{itemize}
-    \item \textbf{MA-50}: Used exclusively in the bearish 2-of-3 exit signal (price $<$ MA-50 is one of three sell conditions; see Section~\ref{sec:exit-logic}). MA-50 is deliberately excluded from buy gates: MA-200 provides the regime filter on entry, while MA-50's shorter lookback offers earlier detection of trend deterioration on exit. This asymmetry ensures the entry regime filter requires a longer confirmation horizon than the exit deterioration signal.
+    \item \textbf{RSI (14-period):} RSI $< 35$ contributes one bearish vote in the bearish technical exit check.
+    \item \textbf{MACD (12/26/9):} MACD histogram $< 0$ contributes one bearish vote in the same exit check.
+    \item \textbf{MA-50:} Price $<$ MA-50 contributes one bearish vote in the same exit check. MA-50 remains exit-only in the strategy design: MA-200 provides the long-horizon entry regime filter, while MA-50's shorter lookback supports earlier deterioration detection on exit.
 \end{itemize}
 
 \paragraph{Volatility regime indicator.}
@@ -227,11 +230,11 @@ Entry decisions pass through five sequential gates:
 
 \textbf{Gate~3 (Sentiment):} FinBERT sentiment score $\geq -0.10$. Blocks entry only during explicitly bearish earnings communications. The threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3 (C8) to preserve equivalent statistical stringency under CPU-inference score compression (see Section~\ref{sec:sentiment-gate} for calibration details). Tickers with no transcript pass unconditionally.
 
-\textbf{Gate~4a (Volatility):} The continuous volatility multiplier $\text{vol\_mult} = \max(0.40, 1.0 - 0.60 \times \text{vol\_pct})$ scales position size. This is not a binary gate but a continuous risk-scaling mechanism.
+\textbf{Gate~4a (Volatility scaling):} The continuous multiplier $\text{vol\_mult} = \max(0.40, 1.0 - 0.60 \times \text{vol\_pct})$ scales position size. This is a sizing step, not a blocking gate.
 
-\textbf{Gate~4b (Correlation):} The candidate position must have pairwise correlation $< 0.70$ with all currently held positions (measured on a rolling 60-day return window), enforcing portfolio diversification during stress regimes.
+\textbf{Gate~4b (Capacity):} Portfolio must have fewer open positions than \texttt{MAX\_POSITIONS}$=18$.
 
-\textbf{Gate~5 (Capacity):} Portfolio must have fewer open positions than \texttt{MAX\_POSITIONS}$=18$.
+\textbf{Gate~5 (Correlation):} The candidate position must have pairwise absolute correlation $|\rho| < 0.70$ versus all currently held positions (measured on a rolling 60-day return window), enforcing portfolio diversification during stress regimes.
 
 \subsubsection{Path-Dependent Entry Sizing}
 \label{sec:path-sizing}
@@ -249,7 +252,7 @@ Path & Signals & Multiplier & Interpretation \\
 D (all\_three) & RSI + MACD + Volume & $1.00\times$ & All dimensions confirm \\
 A (RSI+MACD) & Momentum alignment & $0.90\times$ & Market participation absent \\
 B (RSI+Vol) & Participation present, MACD weak & $0.75\times$ & Momentum unconfirmed \\
-C-low & MACD+Vol, RSI 35--40 & $0.75\times$ & RSI in caution zone \\
+C-low & MACD+Vol, RSI $< 40$ & $0.75\times$ & RSI in caution zone \\
 C-high & MACD+Vol, RSI $> 75$ or unavailable & $0.50\times$ & Overbought or data-sparse \\
 \hline
 \end{tabular}
@@ -272,7 +275,7 @@ Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selec
 
 \subsubsection{Sentiment Cache Design}
 
-An additive cache accumulates FinBERT results keyed by (ticker, quarter). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached. On CPU deployment (batch size 16, \texttt{max\_length}$=128$), a cap of 2,000 transcripts per \texttt{evaluate()} call is applied, with uncached tickers passing Gate~3 unconditionally.
+An additive cache accumulates FinBERT results keyed by (ticker, date). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached. On CPU deployment (batch size 16, \texttt{max\_length}$=128$), a cap of 2,000 transcripts per \texttt{evaluate()} call is applied, with uncached tickers passing Gate~3 unconditionally.
 
 
 \subsubsection{Sentiment Gate Calibration (C8)}
@@ -305,6 +308,12 @@ The v5.3 base position target is:
 
 SIZING\_SCALE $= 1.10$ compensates for average path multiplier underutilisation ($\approx 0.83$ across the observed path distribution), targeting approximately 10--12\% idle cash at normal volatility. Prior to v5.3, a static \$5,000 position target caused idle cash to grow monotonically as the portfolio compounded: at a terminal Dev value of $\approx\$316{,}000$, each position represented only $\approx 1.6\%$ of portfolio vs.\ the intended $\approx 5\%$.
 
+In implementation, the effective order target also applies a minimum notional floor:
+\[
+\text{effective\_target} = \max\!\left(100,\; \left\lfloor\text{base\_target} \times \text{path\_mult} \times \text{vol\_mult} \times \text{dd\_brake}\right\rfloor\right)
+\]
+so very small orders are suppressed.
+
 \subsubsection{Continuous Volatility Scaling}
 
 Position sizes are multiplied by:
@@ -323,15 +332,15 @@ where $\text{vol\_pct}$ is the 52-week ATR percentile. Compression begins at $\t
 \subsubsection{Exit Logic}
 \label{sec:exit-logic}
 
-Positions are exited via one of six mechanisms, listed in order of priority:
+Positions are exited via one of six mechanisms, listed in code-path priority:
 
 \begin{enumerate}[(1)]
     \item \textbf{HWM Drawdown Brake}: If the rolling 52-week portfolio drawdown from its high-water mark (HWM) exceeds tiered thresholds (0\% $\to$ 1.00$\times$; $-5\%$ $\to$ 0.75$\times$; $-10\%$ $\to$ 0.50$\times$; $-20\%$ $\to$ 0.25$\times$ floor), the buy-side multiplier is compressed. This is not a sell signal but reduces new position sizes during sustained drawdown.
-    \item \textbf{Path-Differentiated Stop-Loss}: Global stop at $-15\%$ (paths D/A/B); C-high stop at $-10\%$; C-low stop at $-12\%$. C-high positions (the least-confirmed signal combination) receive the tightest stop.
-    \item \textbf{Trailing Stop}: Activates at $+20\%$ price appreciation above entry. Trailing gap of $12\%$ from the high-water mark. Backstop close at $+80\%$ (locks profit at near-peak). The WFO-selected parameter pair creates a mathematical breakeven guarantee: the worst-case trailing stop exit occurs at entry $\times\, 1.20 \times 0.88 = $ entry $\times\, 1.056$, guaranteeing at least $+5.6\%$ profit once the trailing stop activates---the trailing stop can never convert a winning position into a loss.
-    \item \textbf{Take Profit}: Fixed $+80\%$ take-profit for positions that reach the target without triggering the trailing stop.
+    \item \textbf{Path-Differentiated Stop-Loss}: Global stop triggers when P\&L falls below $-15\%$ (paths D/A/B); C-high stop below $-10\%$; C-low stop below $-12\%$. C-high positions (the least-confirmed signal combination) receive the tightest stop.
+    \item \textbf{Take Profit}: Fixed $+80\%$ take-profit, triggered when P\&L exceeds $+80\%$ (checked before trailing-stop logic in implementation).
+    \item \textbf{Trailing Stop}: Activates once price appreciation exceeds $+20\%$ above entry. Trailing gap is $12\%$ from the high-water mark. The WFO-selected pair creates a mathematical breakeven guarantee: worst-case trailing-stop exit is entry $\times\, 1.20 \times 0.88 = $ entry $\times\, 1.056$, so once activated, trailing cannot convert a winner into a loss.
     \item \textbf{Path B Timeout}: Path B (RSI + volume without MACD confirmation) exits after 10 weeks if MACD histogram remains negative. The $\text{macd\_confirmed}$ flag (C5) suppresses this timeout once MACD turns positive post-entry.
-    \item \textbf{Bearish 2-of-3}: Exits when 2-of-3 bearish conditions hold: RSI $< 35$ (below \texttt{RSI\_SELL}), MACD histogram $< 0$, or price $<$ MA-50. For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits. The sell signal set is deliberately asymmetric with the buy signal set: volume ratio is absent from sell signals (volume surges confirm entries but their absence does not signal deterioration), and MA-50 replaces MA-200 (its shorter lookback detects trend breaks faster than the regime filter).
+    \item \textbf{Bearish 2-of-3}: Exits when 2-of-3 bearish conditions hold: RSI $< 35$ (below \texttt{RSI\_SELL}), MACD histogram $< 0$, or price $<$ MA-50. C6 modifies this for Path C-low entries: RSI contributes no bearish vote during the first 4 weeks after entry (grace period), then reactivates. For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits. The sell signal set is deliberately asymmetric with the buy signal set: volume ratio is absent from sell signals (volume surges confirm entries but their absence does not signal deterioration), and MA-50 replaces MA-200 (its shorter lookback detects trend breaks faster than the regime filter).
 \end{enumerate}
 
 \begin{figure}[H]

@@ -51,7 +51,7 @@ The primary objectives of this project are:
     \item Achieve measurable improvements over the baseline across all five evaluation metrics: Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, and Volatility.
 \end{enumerate}
 
-\section{Exploratory Data Analysis and Data Preparation}
+\section{Exploratory Data Analysis (EDA) and Data Preparation}
 
 \subsection{Dataset Overview and Coverage}
 
@@ -79,7 +79,7 @@ Figure~\ref{fig:returns-distribution} confirms the fat-tailed structure: the QQ-
 
 \subsection{Technical Indicator Signal Rates}
 
-Exploratory Data Analysis (EDA) on a stratified 30-ticker sample of the Dev split quantifies gate fire rates: Gate 1 (price $>$ MA-200) passes 66.8\% of ticker-weeks; RSI in $[40, 75]$ passes 89.8\% of gate-1 rows (weak discriminator); MACD histogram $> 0$ passes 51.0\% (primary momentum signal); and volume ratio $\geq 1.2\times$ passes only 22.9\% (most selective gate). The 2-of-3 combination fires on 57.4\% of gate-1 rows. The low volume-ratio fire rate confirms its structural orthogonality to price-derived momentum signals, motivating the v2 decision to replace the collinear Bollinger Band mid-line gate with volume ratio.
+Exploratory Data Analysis (EDA) on a stratified 30-ticker sample of the Dev split quantifies gate fire rates: Gate 1 (price $>$ MA-200) passes 66.8\% of ticker-weeks; RSI in $[40, 75]$ passes 89.8\% of gate-1 rows (weak discriminator); MACD histogram $> 0$ passes 51.0\% (primary momentum signal); and volume ratio $\geq 1.2\times$ passes only 22.9\% (most selective gate). The 2-of-3 combination fires on 57.4\% of gate-1 rows. The low volume-ratio fire rate confirms its structural orthogonality to price-derived momentum signals, motivating the decision in the strategy's second iteration (v2) to replace the collinear Bollinger Band mid-line gate with volume ratio.
 
 \begin{figure}[H]
 \centering
@@ -105,7 +105,7 @@ The extended EDA directly informed strategy design. Coverage and quality diagnos
 
 \subsection{Scalability Challenges}
 
-The primary bottleneck is FinBERT inference: at 9,675 Dev transcripts, unoptimised sequential processing would require approximately 3--4 hours on CPU. A secondary bottleneck is indicator computation across 337 tickers and 1.3M rows.
+The primary bottleneck is FinBERT inference: at 9,675 Dev transcripts, unoptimised sequential processing would require approximately 3-4 hours on a CPU. A secondary bottleneck is indicator computation across 337 tickers and 1.3M rows.
 
 \subsection{Optimisation Strategies}
 

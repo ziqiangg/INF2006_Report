@@ -398,16 +398,16 @@ Several directions merit investigation: extending the strategy to include short 
 
 \section*{Appendix A: Individual Contributions}
 
-\begin{tabular}{lp{11cm}}
+\begin{tabular}{lp{6cm}}
 \hline
 Member & Contribution \\
 \hline
-\textbf{Guo Zi Qiang Robin} & Principal architect of the full strategy across v1--v5.3. Designed and implemented the five-gate buy pipeline, path-dependent entry sizing (v3), path-aware exit logic (v4), and all dynamic capital allocation innovations (v5.3): dynamic base target (C1), continuous vol\_mult (C2), MAX\_POSITIONS adjustment (C3), PATH\_A\_MULT refinement (C4), Path B MACD confirmation tracking (C5), C-low RSI grace period (C6), and rolling HWM drawdown brake (C7). Led identification and resolution of the cash accumulation problem. Executed WFO v2. Conducted signal independence EDA (Section C), path classifier pre-distribution (Section D), and cross-sectional momentum scoring (Section J). \\
-\textbf{Cai Wenjing} & Designed and executed the Walk-Forward Optimisation framework (WFO v1 and WFO v2), including the precompute-once/simulate-many template architecture, exhaustive grid evaluation, composite DD-penalised scoring, and BS7 crash-window sensitivity testing. Conducted volatility regime characterisation (Section E). Researched Bayesian optimisation as an alternative approach before concluding WFO was more appropriate for the anchored IS/OOS structure. \\
-\textbf{Ng Kay Cheng} & Contributed to implementation and refinement of the v5 trailing stop mechanism, including high-water mark update logic and breakeven guarantee validation. Contributed to price feature correlation analysis and data density visualisations (Sections A and F). \\
-\textbf{Hing Zheng Wen} & Contributed to the v5 trailing stop mechanism and path-aware hard stop differentiation. Conducted exit threshold calibration analysis (Section H), including forward return distribution study validating stop-loss and trailing stop levels. \\
-\textbf{Fang Chong} & Contributed to data cleaning and analytics calculation infrastructure, including parallelised per-ticker indicator pipeline and OPT-9 (bb\_mid alias). Conducted earnings transcript word frequency analysis (Section I) validating the three-tier keyword scoring scheme. \\
-\textbf{Tan Zi Xu} & Contributed to FinBERT sentiment integration, three-tier keyword paragraph selection scheme, and overall system architecture including the additive sentiment cache (OPT-1). Led CPU deployment recalibration including SENTIMENT\_BLOCK threshold adjustment (C8) and entry-sentiment exit signal implementation (C9). Contributed to volume-price relationship analysis (Section C/F) and daily return distribution study (Section B). \\
+\textbf{Guo Zi Qiang Robin} & Principal architect of full strategy (v1--v5.3). Designed/implemented: five-gate buy pipeline; path-dependent entry sizing (v3); path-aware exit logic with tighter $-10\%$ stop for Path C-high (v4); all v5.3 dynamic capital allocation innovations—dynamic base target from portfolio value (C1), continuous volatility regime multiplier (C2), regime-adjusted slot count to 18 positions (C3), PATH\_A\_MULT refinement to 0.90 (C4), Path B MACD confirmation tracking (C5), C-low RSI grace period (C6), rolling 52-week HWM drawdown brake (C7). Led resolution of cash accumulation and regime-blind slot count issues. Executed WFO v2 calibrating \texttt{SIZING\_SCALE} and \texttt{BRAKE\_HWM\_WEEKS}. Contributed to v5.2 speed optimisations (OPT-1/2, OPT-5--9). \\
+\textbf{Cai Wenjing} & Designed/executed WFO v1 framework for v5.2 calibration: precompute-once/simulate-many architecture, composite DD-penalised scoring, BS7 crash-window sensitivity testing. Calibrated \texttt{TRAIL\_ACTIVATE\_PCT=0.20}, \texttt{TRAIL\_PCT=0.12}, \texttt{MAX\_HOLD\_WEEKS\_PATH\_B=10} across 15 anchored IS/OOS windows. Researched Bayesian optimisation; validated WFO robustness for sequential regime diversity requirements. \\
+\textbf{Ng Kay Cheng} & Jointly implemented v1 baseline entry (2-of-3 signals: RSI 40--65, MACD histogram positive, price above BB mid-line) and refined v5 trailing stop mechanism (HWM update logic, breakeven validation). \\
+\textbf{Hing Zheng Wen} & Jointly implemented v2 signal selection refinement and v5 trailing stop mechanism. Assisted in WFO design and reporting. \\
+\textbf{Fang Chong} & Developed data cleaning and analytics infrastructure, including parallelised per-ticker indicator pipeline. \\
+\textbf{Tan Zi Xu} & Integrated FinBERT sentiment analysis, three-tier keyword paragraph selection, and additive sentiment cache architecture (OPT-1). Led CPU deployment recalibration: \texttt{SENTIMENT\_BLOCK} adjustment (C8), entry-sentiment exit signal (C9). Contributed to v5.2 speed optimisations (OPT-1/2, OPT-9). \\
 \hline
 \end{tabular}
 
@@ -415,7 +415,7 @@ Member & Contribution \\
 
 The following generative AI tools were used during this project:
 
-\begin{tabular}{lp{10cm}}
+\begin{tabular}{lp{6cm}}
 \hline
 Tool & Usage \\
 \hline

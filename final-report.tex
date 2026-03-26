@@ -460,52 +460,49 @@ Total Trades & 3,639 & 3,767 & 1,373 \\
 \end{tabular}
 \end{table}
 
-On the validation split, the enhanced strategy improves all five metrics simultaneously: total return increases by $5.1\times$ ($63.05\%$ vs.\ $12.45\%$), Sharpe ratio rises from 0.41 to 1.84 (exceeding the $1.0$ ``good'' threshold), maximum drawdown improves by 22.93 percentage points ($-12.49\%$ vs.\ $-35.42\%$), win rate gains 14.16 points ($41.91\%$ vs.\ $27.75\%$), and portfolio volatility drops from 43.80\% to 19.40\%. The primary performance driver is capital efficiency improvement: dynamic sizing deployed capital proportionally to portfolio value, correctly maintaining slot allocation across compounding growth, rather than alpha enhancement in the signal architecture. Section~\ref{sec:base-enhanced-profiling} shows that this quality gain was not obtained via extra runtime cost in the profiled CPU pipeline.
-
-The exit distribution (92.7\% bearish-signal exits on Dev, 91.5\% on Val) confirms that the primary exit mechanism is signal reversal rather than stop-loss triggering. Stop-loss exits represent only 2.2--2.6\% of all exits, confirming that gate selectivity and exit timing are the primary risk controls.
+\subsection{Performance Visualization and Analysis}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/v5.3_dev-portfolio.png}
 \caption{Enhanced v5.3 portfolio value trajectory on the Dev split (2000--2017). 
-Shows cumulative growth reaching \$316k from \$100k initial capital, with volatility 
-scaling and drawdown management visible during crisis periods.}
+Shows cumulative growth with volatility scaling and drawdown management visible during 
+crisis periods, including the 2008 Global Financial Crisis.}
 \label{fig:v5.3-portfolio-dev}
 \end{figure}
-Figure~\ref{fig:v5.3-portfolio-dev} illustrates the enhanced strategy's compounding 
-trajectory on the Dev split, reaching \$316,452 from initial capital of \$100,000 
-(247.65\% return). The portfolio demonstrates disciplined drawdown management with 
-the maximum peak-to-trough decline limited to -22.10\%, substantially below the 
-baseline's -35.42\%.
+Figure~\ref{fig:v5.3-portfolio-dev} illustrates the enhanced strategy's compounding trajectory 
+on the Dev split, reaching \$316,452 from initial capital of \$100,000 (247.65\% return). 
+The portfolio demonstrates disciplined drawdown management with maximum peak-to-trough decline 
+limited to -22.10\%, substantially below the baseline's -35.42\%.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/v5.3_val-portfolio.png}
 \caption{Enhanced v5.3 portfolio value trajectory on the Val split (2018--2024). 
-Performance over 7 years of out-of-sample data including COVID-19 crash, Fed rate hikes, 
-and SVB banking crisis. Demonstrates strategy robustness across unprecedented regimes.}
+Performance across unprecedented regimes confirms strategy robustness to crisis conditions.}
 \label{fig:v5.3-portfolio-val}
 \end{figure}
 Figure~\ref{fig:v5.3-portfolio-val} extends this analysis to the held-out Val split 
 (2018--2024), providing evidence of out-of-sample robustness across three unprecedented 
 market regimes: the COVID-19 crash (-34\% S\&P in 33 days), the fastest Fed rate-hike 
 cycle, and SVB banking crisis. Despite these challenges, the strategy achieves a 
-validation Sharpe of 1.84 compared to -0.41 baseline, with maximum drawdown of only 
--12.49\%.
-
+validation Sharpe of 1.84 (vs.\ 0.41 baseline), with maximum drawdown of only -12.49\% 
+(vs.\ -35.42\% baseline).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/v5.3_baselineVSenhanced.png}
-\caption{Side-by-side performance comparison: baseline (Red) vs. enhanced v5.3 (Blue) 
-on Val split. Enhanced strategy achieves superior Sharpe ratio (1.84 vs. 0.41), 
-reduced drawdown (-12.49\% vs. -35.42\%), and 5.1× higher total returns.}
+\caption{Side-by-side performance comparison: baseline (red) vs.\ enhanced v5.3 (blue) 
+on Val split. Enhanced strategy achieves superior risk-adjusted returns and drawdown control.}
 \label{fig:baseline-vs-enhanced}
 \end{figure}
-Figure~\ref{fig:baseline-vs-enhanced} visualizes the performance gap across all five 
-metrics simultaneously, demonstrating the superiority of the five-gate architecture 
-with path-dependent sizing and continuous volatility scaling.
 
+On the validation split, the enhanced strategy improves all five metrics simultaneously: 
+total return increases by $5.1\times$ (63.05\% vs.\ 12.45\%), Sharpe ratio rises from 
+0.41 to 1.84 (exceeding the $1.0$ ``good'' threshold), maximum drawdown improves by 
+22.93 percentage points, win rate gains 14.16 points (41.91\% vs.\ 27.75\%), and 
+portfolio volatility drops from 43.80\% to 19.40\%. Figure~\ref{fig:baseline-vs-enhanced} 
+visualizes this improvement across all metrics simultaneously.
 
 % -----------------------------------------------------------------------
 % \clearpage ensures §6 heading never shares a page-end with §5.4 content.

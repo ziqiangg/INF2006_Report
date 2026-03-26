@@ -56,8 +56,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%% Main document
 
-% {Introduction}
-
 \section{Introduction}
 
 \subsection{Project Overview}
@@ -81,12 +79,19 @@ The primary objectives of this project are:
     \item Achieve measurable improvements over the baseline across all five evaluation metrics: Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, and Volatility.
 \end{enumerate}
 
-
-% {Enhanced Exploratory Data Analysis (EDA)}
-
-
 \clearpage
-\section{Enhanced Exploratory Data Analysis (EDA)}
+\section{EDA and Data Preparation}
+
+\subsection{Dataset Overview and Coverage}
+
+The price dataset spans two partitions: the development split (Dev: 2000-01-03 to 2017-12-29) containing 1,332,576 records across 340 unique tickers, and the validation split (Val: 2018-01-02 to 2024-12-31) containing 598,740 records across 340 tickers. The earnings dataset contains 9,729 transcripts (Dev) and 8,534 transcripts (Val) across 294 tickers with earnings coverage. Of the 340 price-universe tickers, 291 (85.6\%) have at least one earnings transcript; the remaining 49 tickers pass the sentiment gate unconditionally.
+
+Data quality is high: no duplicate (ticker, date) rows were identified, no OHLC sanity violations (high $<$ low or close outside high/low $\pm 1\%$) were detected across the 1.9M combined rows, and zero consecutive forward-fill gaps exceeding the 5-day limit were found. Zero-volume trading days account for 0.118\% of records and represent exchange closures or data artefacts rather than illiquidity in active constituents.
+
+\subsection{Data Cleaning}
+
+Tickers with fewer than 252 trading days of price history are dropped to ensure all lookback-based indicators (MA-200, 52-week ATR percentile, 60-day rolling correlation) have sufficient history for stable estimates. Three tickers were removed from the Dev split (0.9\%); zero from the Val split. Daily returns are clipped to $\pm 30\%$ to remove data errors and corporate event artefacts; the 0.014\% clip rate confirms these are genuine outliers. Transcripts shorter than 100 characters (54 records) are dropped as encoding errors. The remaining 18,209 transcripts are passed to the FinBERT pipeline.
+% NOTE: original text said 18,150 — corrected to 18,209 per notebook output (9,675 Dev + 8,534 Val = 18,209; confirmed in Cell 32 sentiment cache: "18209 entries").
 
 \subsection{Return Distribution and Outlier Characterisation}
 
@@ -124,57 +129,10 @@ Aggregate statistics are near-identical: annualised return 19.92\% (Dev) vs.\ 17
 
 The extended EDA directly informed strategy design. Coverage and quality diagnostics support robust computation of long-lookback features. Fat-tailed but sparse return extremes motivated $\pm 30\%$ clipping. Complementary rather than redundant indicator roles---RSI frequent, MACD moderately selective, volume most selective---motivated the 2-of-3 gate design with volume replacing collinear BB mid-line. Transcript-length analysis confirmed that 99.4\% exceed FinBERT's token limit, motivating three-tier keyword paragraph selection. Volatility-regime and correlation diagnostics confirmed structural shifts during stress periods, motivating continuous ATR-percentile scaling. Path pre-distribution stability across windows supported path-dependent multipliers. Where sampling was used for computational tractability, the same qualitative relationships were validated against broader split-level summary statistics.
 
-%{Data Cleaning and Preparation}
-
-\section{Data Cleaning and Preparation}
-\subsection{Dataset Overview and Coverage}
-
-The price dataset spans two partitions: the development split (Dev: 2000-01-03 to 2017-12-29) containing 1,332,576 records across 340 unique tickers, and the validation split (Val: 2018-01-02 to 2024-12-31) containing 598,740 records across 340 tickers. The earnings dataset contains 9,729 transcripts (Dev) and 8,534 transcripts (Val) across 294 tickers with earnings coverage. Of the 340 price-universe tickers, 291 (85.6\%) have at least one earnings transcript; the remaining 49 tickers pass the sentiment gate unconditionally.
-
-Data quality is high: no duplicate (ticker, date) rows were identified, no OHLC sanity violations (high $<$ low or close outside high/low $\pm 1\%$) were detected across the 1.9M combined rows, and zero consecutive forward-fill gaps exceeding the 5-day limit were found. Zero-volume trading days account for 0.118\% of records and represent exchange closures or data artefacts rather than illiquidity in active constituents.
-
-\subsection{Data Cleaning}
-
-Tickers with fewer than 252 trading days of price history are dropped to ensure all lookback-based indicators (MA-200, 52-week ATR percentile, 60-day rolling correlation) have sufficient history for stable estimates. Three tickers were removed from the Dev split (0.9\%); zero from the Val split. Daily returns are clipped to $\pm 30\%$ to remove data errors and corporate event artefacts; the 0.014\% clip rate confirms these are genuine outliers. Transcripts shorter than 100 characters (54 records) are dropped as encoding errors. The remaining 18,209 transcripts are passed to the FinBERT pipeline.
-% NOTE: original text said 18,150 — corrected to 18,209 per notebook output (9,675 Dev + 8,534 Val = 18,209; confirmed in Cell 32 sentiment cache: "18209 entries").
-
-
-% {Computational Efficiency and Performance Optimization}
-\section{Computational Efficiency and Performance Optimization}
-
-\subsection{Scalability Challenges}
-
-The primary bottleneck is FinBERT inference: at 9,675 Dev transcripts, unoptimised sequential processing would require approximately 3--4 hours on a CPU. A secondary bottleneck is indicator computation across 337 tickers and 1.3M rows.
-
-\subsection{Optimisation Strategies}
-
-Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
-
-\textbf{OPT-1: Additive Sentiment Cache.} FinBERT inference is computed once per transcript and stored in a dictionary keyed by (ticker, date), eliminating $N_{\text{weeks}} \times N_{\text{tickers}}$ redundant inferences.
-
-\textbf{OPT-2: Additive Analytics Cache.} Technical indicators are precomputed once across the full split and stored in a vectorised lookup structure. The additive design enables WFO to share a single cache across all IS/OOS windows.
-
-\textbf{OPT-3 and OPT-4: FinBERT Truncation and Batching.} On GPU (T4), maximum input length is fixed at 1,200 characters (after keyword extraction) with \texttt{max\_length}$=512$ tokens and batch size of 256, maximising GPU utilisation. On CPU deployment, these are reduced to 500 characters, \texttt{max\_length}$=128$ tokens, and batch size of 16 to fit L3 cache constraints.
-% NOTE: original text described only the GPU configuration (1200 chars / 512 tokens / batch 256).
-% The CPU deployment version (Cell 30) uses 500 chars / 128 tokens / batch 16. Both are correct
-% for their respective environments: GPU for WFO precomputation, CPU for leaderboard deployment.
-
-\textbf{OPT-5 through OPT-9: Simulation Loop Micro-optimisations.} Vectorised percentile rank computation (OPT-5), cached weekly timestamps (OPT-6), precomputed rolling return windows (OPT-7), early-exit price checks (OPT-8), and BB mid-line aliased to MA-20 (OPT-9).
-
-\subsection{Performance Measurements}
-
-The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The WFO v2 grid was deliberately restricted to 6 combinations (3 SIZING\_SCALE $\times$ 2 BRAKE\_HWM\_WEEKS values), enabling exhaustive evaluation across all 15 IS windows within a single parallelised session. The small grid size reflects the anchored IS/OOS walk-forward methodology \citep{Pardo2008}, in which a narrow, hypothesis-driven parameter space is preferred over broad combinatorial search to reduce overfitting risk.
-
 % -----------------------------------------------------------------------
-% \clearpage ensures §5 heading never shares a page-end with §4.3 content.
-% A brief introductory sentence also separates the §5 heading from §5.1,
-% preventing the two headings from appearing stacked adjacently.
+% \clearpage ensures §3 heading never shares a page-end with §2.7 content.
 % -----------------------------------------------------------------------
-
-
-
-
-%Strategy Enhancement Methodology
+\clearpage
 \section{Strategy Enhancement Methodology}
 
 The enhanced strategy is implemented as a Python subclass (\texttt{EnhancedStrategy(BaseStrategy)}) that overrides all five core methods of the baseline: \texttt{clean\_data} (adds minimum-history filtering, return clipping, and forward-fill limits), \texttt{calculate\_analytics} (replaces the single MA-50 computation with a parallelised six-family indicator pipeline), \texttt{llm\_analysis} (replaces raw last-2000-character FinBERT inference with an O(1) lookup into the precomputed sentiment cache), \texttt{make\_decision} (replaces the single-signal buy/sell logic with the five-gate buy pipeline and six-mechanism exit logic described below), and \texttt{evaluate} (adds the weekly HWM brake update loop and per-week analytics caching). Only \texttt{set\_data} is inherited unchanged.
@@ -253,7 +211,7 @@ Path A reduces the multiplier from 1.0$\times$ to 0.90$\times$ (C4): volume is s
 
 \subsubsection{Three-Tier Keyword Paragraph Selection}
 
-Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selection scheme extracts the highest-scoring paragraphs by keyword density: \textbf{Tier~1} (weight $1\times$) covers reporting boilerplate (\textit{quarter}, \textit{results}, \textit{balance sheet}); \textbf{Tier~2} (weight $2\times$) covers financial performance (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}); \textbf{Tier~3} (weight $3\times$) covers forward-looking guidance (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}), which appears in 70.3\% of transcripts but carries the highest signal value. Selected paragraphs are concatenated to a maximum of 500 characters or 1,200 characters (WFO) before FinBERT inference. The resulting score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
+Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selection scheme extracts the highest-scoring paragraphs by keyword density: Tier~1 (weight $1\times$) covers reporting boilerplate (\textit{quarter}, \textit{results}, \textit{balance sheet}); Tier~2 (weight $2\times$) covers financial performance (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}); Tier~3 (weight $3\times$) covers forward-looking guidance (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}), which appears in 70.3\% of transcripts but carries the highest signal value. Selected paragraphs are concatenated to a maximum of 500 characters or 1,200 characters (WFO) before FinBERT inference. The resulting score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
 
 \subsubsection{Sentiment Cache Design}
 
@@ -345,18 +303,38 @@ Bearish 2-of-3    & 1,194\;\;(86.3\%) & 1,740\;\;(92.7\%) & 433\;\;(85.4\%) & 62
 % -----------------------------------------------------------------------
 % \clearpage ensures §4 heading never shares a page-end with §3 content.
 % -----------------------------------------------------------------------
+\clearpage
+\section{Computational Efficiency and Performance Optimisation}
 
+\subsection{Scalability Challenges}
 
+The primary bottleneck is FinBERT inference: at 9,675 Dev transcripts, unoptimised sequential processing would require approximately 3--4 hours on a CPU. A secondary bottleneck is indicator computation across 337 tickers and 1.3M rows.
 
+\subsection{Optimisation Strategies}
 
+Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 
+\textbf{OPT-1: Additive Sentiment Cache.} FinBERT inference is computed once per transcript and stored in a dictionary keyed by (ticker, date), eliminating $N_{\text{weeks}} \times N_{\text{tickers}}$ redundant inferences.
 
+\textbf{OPT-2: Additive Analytics Cache.} Technical indicators are precomputed once across the full split and stored in a vectorised lookup structure. The additive design enables WFO to share a single cache across all IS/OOS windows.
 
+\textbf{OPT-3 and OPT-4: FinBERT Truncation and Batching.} On GPU (T4), maximum input length is fixed at 1,200 characters (after keyword extraction) with \texttt{max\_length}$=512$ tokens and batch size of 256, maximising GPU utilisation. On CPU deployment, these are reduced to 500 characters, \texttt{max\_length}$=128$ tokens, and batch size of 16 to fit L3 cache constraints.
+% NOTE: original text described only the GPU configuration (1200 chars / 512 tokens / batch 256).
+% The CPU deployment version (Cell 30) uses 500 chars / 128 tokens / batch 16. Both are correct
+% for their respective environments: GPU for WFO precomputation, CPU for leaderboard deployment.
 
+\textbf{OPT-5 through OPT-9: Simulation Loop Micro-optimisations.} Vectorised percentile rank computation (OPT-5), cached weekly timestamps (OPT-6), precomputed rolling return windows (OPT-7), early-exit price checks (OPT-8), and BB mid-line aliased to MA-20 (OPT-9).
 
+\subsection{Performance Measurements}
 
-%{Experimental Results and Analysis}
+The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The WFO v2 grid was deliberately restricted to 6 combinations (3 SIZING\_SCALE $\times$ 2 BRAKE\_HWM\_WEEKS values), enabling exhaustive evaluation across all 15 IS windows within a single parallelised session. The small grid size reflects the anchored IS/OOS walk-forward methodology \citep{Pardo2008}, in which a narrow, hypothesis-driven parameter space is preferred over broad combinatorial search to reduce overfitting risk.
 
+% -----------------------------------------------------------------------
+% \clearpage ensures §5 heading never shares a page-end with §4.3 content.
+% A brief introductory sentence also separates the §5 heading from §5.1,
+% preventing the two headings from appearing stacked adjacently.
+% -----------------------------------------------------------------------
+\clearpage
 \section{Experimental Results and Analysis}
 
 This section presents the iterative version progression, Walk-Forward Optimisation results, OOS diagnostic findings, and final performance outcomes of the enhanced strategy.
@@ -416,14 +394,7 @@ Two WFO stages were conducted:
 
 The enhanced strategy (v5.3) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in WFO v2 produced negative Sharpe: 2008 ($-2.18$), 2011 ($-0.61$), 2015 ($-0.35$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
 
-
-% -----------------------------------------------------------------------
-% \clearpage ensures §6 heading never shares a page-end with §5.4 content.
-% -----------------------------------------------------------------------
-
-%{Final Performance Outcomes}
-
-\section{Final Performance Outcomes}
+\subsection{Final Performance Outcomes}
 
 \begin{center}
 \begin{tabular}{lccc}
@@ -447,9 +418,7 @@ The exit distribution (92.7\% bearish-signal exits on Dev, 91.5\% on Val) confir
 % -----------------------------------------------------------------------
 % \clearpage ensures §6 heading never shares a page-end with §5.4 content.
 % -----------------------------------------------------------------------
-
-%Related Work
-
+\clearpage
 \section{Related Work}
 
 The strategy draws on three bodies of technical literature. On technical indicator construction, the RSI and MACD implementations follow standard practitioner definitions \citep{Wilder1978}, while Bollinger Bands follow the original formulation \citep{Bollinger2002}. The volume-price relationship as a signal of market participation has been documented in market microstructure literature \citep{Blume1994}.
@@ -460,10 +429,7 @@ On volatility-managed portfolios, the continuous volatility scaling approach dra
 
 On Walk-Forward Optimisation, the anchored IS/OOS design follows \citet{Pardo2008}. The DD-penalised composite objective and BS7 crash-window sensitivity check are novel contributions of this project.
 
-
-
-
-%{Conclusion, Limitations, and Future Work}
+\clearpage
 \section{Conclusion, Limitations, and Future Work}
 
 \subsection{Conclusion}
@@ -492,9 +458,6 @@ A secondary challenge was \textbf{indicator collinearity identification}: the v1
 
 Several directions merit investigation: extending the strategy to include short positions during bear-market regimes; replacing the binary FinBERT sentiment gate with a continuous score incorporated into position sizing; extending WFO to include Bayesian optimisation over the full parameter space; and testing cross-market generalisability on other equity universes (MSCI World, MSCI Emerging Markets).
 
-
-
-%References/Appendix
 \vfill
 \newpage
 \bibliography{mybib}

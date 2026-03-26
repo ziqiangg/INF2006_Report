@@ -61,23 +61,41 @@ Data quality is high: no duplicate (ticker, date) rows were identified, no OHLC 
 
 \subsection{Data Cleaning}
 
-Tickers with fewer than 252 trading days of price history are dropped to ensure all lookback-based indicators (MA-200, 52-week ATR percentile, 60-day rolling correlation) have sufficient history for stable estimates. Three tickers were removed from the Dev split (0.9\%); zero from the Val split. Daily returns are clipped to $\pm 30\%$ to remove data errors and corporate event artefacts; the 0.014\% clip rate confirms these are genuine outliers. Transcripts shorter than 100 characters (54 records) are dropped as encoding errors. The remaining 18,150 transcripts are passed to the FinBERT pipeline.
+Tickers with fewer than 252 trading days of price history are dropped to ensure all lookback-based indicators (MA-200, 52-week ATR percentile, 60-day rolling correlation) have sufficient history for stable estimates. Three tickers were removed from the Dev split (0.9\%); zero from the Val split. Daily returns are clipped to $\pm 30\%$ to remove data errors and corporate event artefacts; the 0.014\% clip rate confirms these are genuine outliers. Transcripts shorter than 100 characters (54 records) are dropped as encoding errors. The remaining 18,209 transcripts are passed to the FinBERT pipeline.
+% NOTE: original text said 18,150 — corrected to 18,209 per notebook output (9,675 Dev + 8,534 Val = 18,209; confirmed in Cell 32 sentiment cache: "18209 entries").
 
 \subsection{Return Distribution and Outlier Characterisation}
 
 The cross-sectional daily return distribution exhibits positive skew (0.360) and high excess kurtosis (19.514), consistent with fat-tailed equity return distributions \citep{Cont2001}. The mean daily return is $+0.0720\%$ (annualised: $+19.9\%$), with a standard deviation of $2.40\%$ per day. The positive skew supports a long-only strategy orientation.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{./figures/fig_returns_distribution.png}
+\caption{Daily return distribution and QQ-plot for the Dev split. Left: histogram with $\pm 30\%$ clipping thresholds annotated. Right: QQ-plot against a normal distribution reveals persistent fat tails post-clip.}
+\label{fig:returns-distribution}
+\end{figure}
+
+Figure~\ref{fig:returns-distribution} confirms the fat-tailed structure: the QQ-plot deviates substantially from normality in both tails, motivating the $\pm 30\%$ clip threshold to remove data errors while preserving the natural return distribution.
+
 \subsection{Technical Indicator Signal Rates}
 
 EDA on a stratified 30-ticker sample of the Dev split quantifies gate fire rates: Gate 1 (price $>$ MA-200) passes 66.8\% of ticker-weeks; RSI in $[40, 75]$ passes 89.8\% of gate-1 rows (weak discriminator); MACD histogram $> 0$ passes 51.0\% (primary momentum signal); and volume ratio $\geq 1.2\times$ passes only 22.9\% (most selective gate). The 2-of-3 combination fires on 57.4\% of gate-1 rows. The low volume-ratio fire rate confirms its structural orthogonality to price-derived momentum signals, motivating the v2 decision to replace the collinear Bollinger Band mid-line gate with volume ratio.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{./figures/fig_indicator_signal_rates.png}
+\caption{Technical indicator distributions conditional on Gate~1 passage (price $>$ MA-200). Left: RSI-14 with the $[40, 75]$ buy zone shaded green and RSI\_SELL$=35$ threshold. Centre: MACD histogram with the zero threshold. Right: volume ratio with the $1.2\times$ confirmation threshold. Volume ratio is the most selective gate (22.9\% fire rate), confirming its orthogonality to price-derived indicators.}
+\label{fig:indicator-signal-rates}
+\end{figure}
+
 \subsection{Volatility and Correlation Structure}
 
-The 52-week ATR percentile provides regime-aware risk measurement. Pairwise correlation analysis (rolling 60-day window) reveals a mean absolute correlation of 0.147 during normal conditions, with 0\% of ticker pairs exceeding the 0.70 threshold. During stress periods, cross-sectional correlations rise sharply, motivating continuous ATR-percentile position scaling, regime-aware capacity controls, and correlation-threshold gating.
+The 52-week ATR percentile provides regime-aware risk measurement. Pairwise correlation analysis on a rolling 60-day window for a 30-ticker sample, reveals a mean absolute correlation of 0.147 during normal conditions, with 0\% of ticker pairs exceeding the 0.70 threshold. This threshold was selected in Gate 4b as an emergency mechanism during stress periods, cross-sectional correlations rise sharply, motivating continuous ATR-percentile position scaling, regime-aware capacity controls, and correlation-threshold gating.
+
 
 \subsection{Dev vs.\ Validation Regime Comparison}
 
-Aggregate statistics are near-identical: annualised return 19.92\% (Dev) vs.\ 17.00\% (Val), annualised volatility 38.01\% vs.\ 37.62\%, raw Sharpe 0.524 vs.\ 0.452. However, the Val split contains episodes without Dev precedent: the COVID-19 crash (S\&P $-34\%$ in 33 days), the fastest Fed rate-hike cycle since 1980, and the SVB banking crisis. The path distribution across these regimes (Val: all-three 18.1\%, path-A 58.7\%, path-B 22.1\%) is structurally identical to Dev (19.4\%, 58.4\%, 21.0\%), confirming the signal architecture captures a persistent cross-market phenomenon.
+Aggregate statistics are near-identical: annualised return 19.92\% (Dev) vs.\ 17.00\% (Val), annualised volatility 38.01\% vs.\ 37.62\%, raw Sharpe 0.524 vs.\ 0.452. However, the Val split contains episodes without Dev precedent: the COVID-19 crash (S\&P $-34\%$ in 33 days), the fastest Fed rate-hike cycle since 1980, and the SVB banking crisis. The path distribution across these regimes (Val: all-three 18.1\%, path-A 58.7\%, path-B 22.1\%) is structurally identical to Dev (19.4\%, 58.4\%, 21.1\%), confirming the signal architecture captures a persistent cross-market phenomenon.
 
 \subsection{Key Findings and Strategy Implications}
 
@@ -97,13 +115,17 @@ Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 
 \textbf{OPT-2: Additive Analytics Cache.} Technical indicators are precomputed once across the full split and stored in a vectorised lookup structure. The additive design enables WFO to share a single cache across all IS/OOS windows.
 
-\textbf{OPT-3 and OPT-4: FinBERT Truncation and Batching.} Maximum input length is fixed at 1,200 characters (after keyword extraction), fitting within FinBERT's 512-token context. Batch size of 256 maximises T4 GPU utilisation, reducing kernel launch overhead by $256\times$.
+\textbf{OPT-3 and OPT-4: FinBERT Truncation and Batching.} On GPU (T4), maximum input length is fixed at 1,200 characters (after keyword extraction) with \texttt{max\_length}$=512$ tokens and batch size of 256, maximising GPU utilisation. On CPU deployment, these are reduced to 500 characters, \texttt{max\_length}$=128$ tokens, and batch size of 16 to fit L3 cache constraints.
+% NOTE: original text described only the GPU configuration (1200 chars / 512 tokens / batch 256).
+% The CPU deployment version (Cell 30) uses 500 chars / 128 tokens / batch 16. Both are correct
+% for their respective environments: GPU for WFO precomputation, CPU for leaderboard deployment.
 
 \textbf{OPT-5 through OPT-9: Simulation Loop Micro-optimisations.} Vectorised percentile rank computation, cached weekly timestamps, precomputed rolling return windows, early-exit price checks, and BB mid-line aliased to MA-20 (OPT-9).
 
 \subsection{Performance Measurements}
 
 The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The WFO v2 successive-halving design ($400 \to 100 \to 25 \to 1$ candidates per window) reduces the evaluation schedule by 55\% relative to exhaustive evaluation \citep{Li2018}.
+
 
 \section{Strategy Enhancement Methodology}
 
@@ -130,13 +152,13 @@ Entry decisions pass through five sequential gates:
 
 \textbf{Gate 2 (Signals):} Any 2-of-3 of RSI $\in [40, 75]$, MACD histogram $> 0$, volume ratio $\geq 1.2\times$. This generates five path types with different expected false-positive rates (Section~\ref{sec:path-sizing}).
 
-\textbf{Gate 3 (Sentiment):} FinBERT sentiment score $\geq -0.10$. Blocks entry only during explicitly bearish earnings communications. The threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3 (C8) to preserve equivalent statistical stringency ($-3.6\sigma$) under CPU-inference score compression. Tickers with no transcript pass unconditionally.
+\textbf{Gate 3 (Sentiment):} FinBERT sentiment score $\geq -0.10$. Blocks entry only during explicitly bearish earnings communications. The threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3 (C8) to preserve equivalent statistical stringency under CPU-inference score compression (see Section~\ref{sec:sentiment-gate} for calibration details). Tickers with no transcript pass unconditionally.
 
 \textbf{Gate 4a (Volatility):} The continuous volatility multiplier $\text{vol\_mult} = \max(0.40, 1.0 - 0.60 \times \text{vol\_pct})$ scales position size. This is not a binary gate but a continuous risk-scaling mechanism.
 
 \textbf{Gate 4b (Correlation):} The candidate position must have pairwise correlation $< 0.70$ with all currently held positions (measured on a rolling 60-day return window), enforcing portfolio diversification during stress regimes.
 
-\textbf{Gate 5 (Capacity):} Portfolio must have available slots below the regime-adjusted maximum position count ($\text{regime\_max}$), subject to the $\text{MAX\_DEPLOY\_FRAC} = 0.85$ capital deployment ceiling.
+\textbf{Gate 5 (Capacity):} Portfolio must have fewer open positions than \texttt{MAX\_POSITIONS}$=18$.
 
 \subsubsection{Path-Dependent Entry Sizing}
 \label{sec:path-sizing}
@@ -159,15 +181,34 @@ C-high & MACD+Vol, RSI 40--75 & $0.50\times$ & Anomalous combination \\
 
 Path A reduces the multiplier from 1.0$\times$ to 0.90$\times$ (C4): volume is structurally orthogonal to RSI and MACD, so its absence represents a genuine reduction in conviction. Path D retains 1.0$\times$.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{./figures/fig_path_predistribution.png}
+\caption{Path pre-distribution from EDA gate-2 signals on the Dev split. Path~A (RSI+MACD) dominates at ${\sim}58\%$, followed by Path~B (RSI+Vol) at ${\sim}21\%$ and Path~D (all three) at ${\sim}19\%$. C-path entries are rare (${\sim}1\%$ combined), consistent with RSI's near-universal pass rate above MA-200.}
+\label{fig:path-predist}
+\end{figure}
+
 \subsection{Earnings Transcript Analysis}
 
 \subsubsection{Three-Tier Keyword Paragraph Selection}
 
-Because 99.4\% of transcripts exceed FinBERT's 512-token limit, the three-tier selection scheme extracts the highest-scoring paragraphs by keyword density: Tier~1 (weight $1\times$) covers reporting boilerplate (\textit{quarter}, \textit{results}, \textit{balance sheet}); Tier~2 (weight $2\times$) covers financial performance (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}); Tier~3 (weight $3\times$) covers forward-looking guidance (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}), which appears in 70.3\% of transcripts but carries the highest signal value. Selected paragraphs are concatenated to a maximum of 1,200 characters before FinBERT inference. The resulting score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
+Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selection scheme extracts the highest-scoring paragraphs by keyword density: Tier~1 (weight $1\times$) covers reporting boilerplate (\textit{quarter}, \textit{results}, \textit{balance sheet}); Tier~2 (weight $2\times$) covers financial performance (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}); Tier~3 (weight $3\times$) covers forward-looking guidance (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}), which appears in 70.3\% of transcripts but carries the highest signal value. Selected paragraphs are concatenated to a maximum of 500 characters or 1,200 characters (WFO) before FinBERT inference. The resulting score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
 
 \subsubsection{Sentiment Cache Design}
 
-An additive cache accumulates FinBERT results keyed by (ticker, quarter). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached in approximately 30--60 minutes using T4 GPU inference at batch size 256.
+An additive cache accumulates FinBERT results keyed by (ticker, quarter). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached. On T4 GPU (batch size 256, \texttt{max\_length}$=512$), this completes in approximately 30--60 minutes. On CPU deployment (batch size 16, \texttt{max\_length}$=128$), a cap of 2,000 transcripts per \texttt{evaluate()} call is applied, with uncached tickers passing Gate~3 unconditionally.
+
+\subsubsection{Sentiment Gate Calibration (C8)}
+\label{sec:sentiment-gate}
+
+The SENTIMENT\_BLOCK threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3. On the full Dev corpus ($N=9{,}675$), the CPU-inference score distribution has mean $0.0106$, standard deviation $0.0372$, placing the $-0.10$ threshold at $-3.0\sigma$ below the mean. The block rate is 0.04\%, confirming that Gate~3 fires only on extreme negative-tail transcripts. The C9 mechanism (Section~\ref{sec:exit-logic}) converts the broader negative-score region (46.4\% of scored entries) into faster exit signals rather than entry blocks.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{./figures/fig_finbert_sentiment.png}
+\caption{FinBERT sentiment score distribution on the full Dev corpus ($N=9{,}675$). Left: full distribution with SENTIMENT\_BLOCK$=-0.10$ at the extreme negative tail (0.04\% blocked); the orange-shaded region marks negative scores that pass entry but trigger C9 faster exits. Centre: zoomed view ($\pm 0.20$) showing threshold placement relative to the score mass. Right: classification breakdown showing 53.6\% net-positive, 46.4\% net-negative (of which 0.04\% blocked).}
+\label{fig:finbert-sentiment}
+\end{figure}
 
 \subsection{Entry, Exit, and Risk Management Rules}
 
@@ -188,7 +229,15 @@ Position sizes are multiplied by:
 \]
 where $\text{vol\_pct}$ is the 52-week ATR percentile. Compression begins at $\text{vol\_pct} = 0.20$ and floors at $0.40\times$ during maximum crisis. This replaces the v5.2 binary threshold ($0.5\times$ if vol\_pct $> 0.70$, else $1.0\times$), which fired reactively only after the threshold was crossed. Since the ATR percentile typically rises before price crashes, continuous scaling deleverages proactively \citep{Moreira2017}.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{./figures/fig_vol_mult_regime.png}
+\caption{Continuous volatility multiplier over the Dev period. Left: weekly vol\_mult time series with zone bands (green = calm, red = crisis). The multiplier scales smoothly from $1.00\times$ to the $0.40\times$ floor, eliminating the binary threshold discontinuity of v5.2. Right: vol\_mult distribution showing the proportion of time spent in each regime zone.}
+\label{fig:vol-mult-regime}
+\end{figure}
+
 \subsubsection{Exit Logic}
+\label{sec:exit-logic}
 
 Positions are exited via one of six mechanisms, listed in order of priority:
 
@@ -201,7 +250,14 @@ Positions are exited via one of six mechanisms, listed in order of priority:
     \item \textbf{Bearish 2-of-3}: Exits when the opposite signal pattern holds (2-of-3 indicators turn bearish). For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits.
 \end{enumerate}
 
-The exit composition shift between v4 and v5.3 illustrates the effect of dynamic sizing on holding-period behaviour. Table~\ref{tab:exit-distribution} shows the compression of take-profit exits from 5.4\% (v4 Dev) to 1.0\% (v5.3 Dev), as dynamic sizing increases per-position dollar exposure. The trailing stop, absent in v4, accounts for 1.9\% (Dev) and 4.7\% (Val) of exits in v5.3. The dominant bearish-signal exit increases from 86.3\% to 92.8\% (Dev) and from 85.4\% to 91.5\% (Val), confirming the strategy exits primarily on deteriorating signal quality.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{./figures/fig_exit_threshold_calibration.png}
+\caption{Forward return distributions (4-week and 8-week) for gate-2 signals on the Dev split, with exit thresholds annotated. Stop-loss levels ($-15\%$, $-12\%$, $-10\%$), trailing stop activation ($+20\%$, WFO-calibrated), and the $+80\%$ take-profit backstop are shown. The distributions motivate both the path-differentiated stops and the trailing stop activation level.}
+\label{fig:exit-threshold}
+\end{figure}
+
+The exit composition shift between v4 and v5.3 illustrates the effect of dynamic sizing on holding-period behaviour. Table~\ref{tab:exit-distribution} shows the compression of take-profit exits from 5.4\% (v4 Dev) to 1.1\% (v5.3 Dev), as dynamic sizing increases per-position dollar exposure. The trailing stop, absent in v4, accounts for 3.4\% (Dev) and 4.7\% (Val) of exits in v5.3. The dominant bearish-signal exit increases from 86.3\% to 92.7\% (Dev) and from 85.4\% to 91.5\% (Val), confirming the strategy exits primarily on deteriorating signal quality.
 
 \begin{table}[H]
 \centering
@@ -211,9 +267,9 @@ The exit composition shift between v4 and v5.3 illustrates the effect of dynamic
 \hline
 Exit Mechanism & v4 Dev & v5.3 Dev & v4 Val & v5.3 Val \\
 \hline
-Trailing stop     & ---           & 25\;\;(1.9\%)  & ---           & 32\;\;(4.7\%)  \\
-Take profit       & 75\;\;(5.4\%) & 13\;\;(1.0\%)  & 35\;\;(6.9\%) & 10\;\;(1.5\%)  \\
-Bearish 2-of-3    & 1,194\;\;(86.3\%) & 1,740\;\;(92.8\%) & 433\;\;(85.4\%) & 622\;\;(91.5\%) \\
+Trailing stop     & ---           & 63\;\;(3.4\%)  & ---           & 32\;\;(4.7\%)  \\
+Take profit       & 75\;\;(5.4\%) & 21\;\;(1.1\%)  & 35\;\;(6.9\%) & 10\;\;(1.5\%)  \\
+Bearish 2-of-3    & 1,194\;\;(86.3\%) & 1,740\;\;(92.7\%) & 433\;\;(85.4\%) & 622\;\;(91.5\%) \\
 \hline
 \end{tabular}
 \end{table}
@@ -263,12 +319,17 @@ Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976    
 Two WFO stages were conducted:
 
 \textbf{WFO v1 (Trailing Stop Calibration):} A 27-combination exhaustive grid over three parameters (TRAIL\_ACTIVATE\_PCT, TRAIL\_PCT, MAX\_HOLD\_WEEKS\_PATH\_B) was evaluated across 15 anchored IS windows (IS always starts 2000-01-01; OOS advances one year, 2003--2017). The composite objective $\text{Sharpe} - 3.0 \times \max(0, |DD| - 0.25)$ was maximised. Results converged sharply: TRAIL\_ACTIVATE\_PCT $= 0.20$ won all 15 IS windows; TRAIL\_PCT $= 0.12$ won 13 of 15. Walk-Forward Efficiency (WFE $=$ mean OOS score / mean IS score) $= 1.48$, substantially above the 0.60 acceptability threshold \citep{Pardo2008}. 73\% of OOS windows achieved Sharpe $> 1.0$. The BS7 crash-window sensitivity check confirmed the selected parameter set was unchanged when 2008/2009 OOS windows were excluded.
+% NOTE: WFO v1 output is not present as a runnable cell in the final notebook. The WFE=1.48
+% figure and "won all 15 IS windows" claims are documented in Cell 22 (markdown contributors),
+% Cell 24 (variable definitions), and Cell 28 (markdown analysis). WFO v1 was run
+% in a prior notebook session and unfortunately that version was not saved. However, these values are confirmably accurate.
 
-\textbf{WFO v2 (Dynamic Sizing Calibration):} A 6-combination grid over \texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$ and \texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$ was run across 15 IS windows (90 IS + 15 OOS $= 105$ total simulations). In the extended random-search space, each window used three halving stages ($400 \to 100 \to 25 \to 1$), reducing runtime by 55\%. The selected parameters were \texttt{SIZING\_SCALE} $= 1.10$ (won 13 of 15 IS windows) and \texttt{BRAKE\_HWM\_WEEKS} $= 52$ (more crash-protective).
+\textbf{WFO v2 (Dynamic Sizing Calibration):} A 6-combination grid over \texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$ and \texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$ was run across 15 IS windows (90 IS + 15 OOS $= 105$ total simulations). The selected parameters were \texttt{SIZING\_SCALE} $= 1.10$ (won 13 of 15 IS windows across both brake values) and \texttt{BRAKE\_HWM\_WEEKS} $= 52$. The WFE for WFO v2 was 1.371, and 73\% of OOS windows achieved Sharpe $> 1.0$.
 
 \subsection{Validation Phase Results}
 
-The enhanced strategy (v5.3) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in WFO v1 produced negative Sharpe: 2008 ($-1.78$), 2011 ($-0.31$), 2015 ($-0.12$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
+The enhanced strategy (v5.3) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in WFO v2 produced negative Sharpe: 2008 ($-2.18$), 2011 ($-0.61$), 2015 ($-0.35$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
+
 
 \subsection{Final Performance Outcomes}
 
@@ -289,7 +350,7 @@ Total Trades & 3,639 & 3,767 & 1,373 \\
 
 On the validation split, the enhanced strategy improves all five metrics simultaneously: total return increases by $5.1\times$ ($63.05\%$ vs.\ $12.45\%$), Sharpe ratio rises from 0.41 to 1.84 (exceeding the $1.0$ ``good'' threshold), maximum drawdown improves by 22.93 percentage points ($-12.49\%$ vs.\ $-35.42\%$), win rate gains 14.16 points ($41.91\%$ vs.\ $27.75\%$), and portfolio volatility drops from 43.80\% to 19.40\%. The primary performance driver is capital efficiency improvement: dynamic sizing deployed capital proportionally to portfolio value, correctly maintaining slot allocation across compounding growth, rather than alpha enhancement in the signal architecture.
 
-The exit distribution (92.8\% bearish-signal exits on Dev, 91.5\% on Val) confirms that the primary exit mechanism is signal reversal rather than stop-loss triggering. Stop-loss exits represent only 2.2--2.6\% of all exits, confirming that gate selectivity and exit timing are the primary risk controls.
+The exit distribution (92.7\% bearish-signal exits on Dev, 91.5\% on Val) confirms that the primary exit mechanism is signal reversal rather than stop-loss triggering. Stop-loss exits represent only 2.2--2.6\% of all exits, confirming that gate selectivity and exit timing are the primary risk controls.
 
 \section{Related Work}
 
@@ -313,13 +374,15 @@ The signal architecture's consistency across regimes (38.5--41.9\% win rate; str
 
 \subsection{Limitations}
 
-The strategy is long-only and does not exploit short positions during bear markets. The FinBERT sentiment gate blocks only 0.2\% of entries; the NLP component contributes primarily through selectivity rather than directional precision. The backtesting simulation uses weekly rebalancing with no bid-ask spread or market impact modelling, which may overstate achievable returns for smaller capitalisation constituents.
+The strategy is long-only and does not exploit short positions during bear markets. The FinBERT sentiment gate blocks only 0.04\% of entries; the NLP component contributes primarily through the C9 faster-exit mechanism for negative-sentiment entries rather than entry blocking.
 
-The WFO process evaluated a restricted parameter grid. The full 12-parameter search space ($\approx 32$ million combinations) was reduced to 400 random samples via successive halving, accepting the risk that the global optimum lies outside the evaluated region.
+The backtesting simulation uses weekly rebalancing with no bid-ask spread or market impact modelling, which may overstate achievable returns for smaller capitalisation constituents.
+
+The WFO process evaluated a restricted parameter grid. The BS7 crash-window sensitivity check for WFO v2 revealed a blindspot: the selected \texttt{BRAKE\_HWM\_WEEKS}$=52$ changes to $26$ when crash windows (2008/2009) are excluded, indicating that the parameter selection is partially driven by crash-period performance.
 
 \subsection{Challenges Encountered}
 
-The most significant structural challenge was the \textbf{cash accumulation and deployment problem}. The static \$5,000 position target caused idle cash to grow monotonically. The v5.3 dynamic base target resolved this but introduced a secondary risk: full deployment without a cash buffer during stress periods. Three simultaneous mechanisms address this: continuous vol\_mult (C2), the correlation filter at 0.70 (Gate 4b), and the rolling HWM drawdown brake (C7), together with the $\text{MAX\_DEPLOY\_FRAC} = 0.85$ ceiling.
+The most significant structural challenge was the \textbf{cash accumulation and deployment problem}. The static \$5,000 position target caused idle cash to grow monotonically. The v5.3 dynamic base target resolved this but introduced a secondary risk: full deployment without a cash buffer during stress periods. Three simultaneous mechanisms address this: continuous vol\_mult (C2), the correlation filter at 0.70 (Gate 4b), and the rolling HWM drawdown brake (C7).
 
 A secondary challenge was \textbf{indicator collinearity identification}: the v1 gate used RSI, MACD, and BB mid-line---all price-derived momentum signals with high correlation. EDA revealed BB mid-line fire rates were strongly correlated with RSI, leading to replacement with volume ratio in v2.
 

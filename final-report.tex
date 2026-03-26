@@ -47,7 +47,7 @@ The primary objectives of this project are:
     \item Implement a multi-signal technical indicator framework extending beyond the baseline MA-50 crossover, incorporating RSI, MACD, volume ratio, Bollinger Bands, and ATR-based volatility regime detection.
     \item Apply FinBERT-based sentiment analysis to earnings call transcripts using a three-tier keyword paragraph selection scheme, producing per-ticker sentiment scores that gate entry decisions.
     \item Develop a scalable indicator computation pipeline using vectorised Pandas operations and parallelised FinBERT inference to reduce runtime from sequential baselines.
-    \item Implement a Walk-Forward Optimisation framework with a composite drawdown-penalised objective function and successive halving to calibrate strategy parameters without in-sample overfitting.
+    \item Implement a Walk-Forward Optimisation framework with anchored in-sample/out-of-sample windows and a composite drawdown-penalised objective function to calibrate strategy parameters without in-sample overfitting.
     \item Achieve measurable improvements over the baseline across all five evaluation metrics: Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, and Volatility.
 \end{enumerate}
 
@@ -124,7 +124,7 @@ Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 
 \subsection{Performance Measurements}
 
-The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The WFO v2 successive-halving design ($400 \to 100 \to 25 \to 1$ candidates per window) reduces the evaluation schedule by 55\% relative to exhaustive evaluation \citep{Li2018}.
+The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The WFO v2 grid was deliberately restricted to 6 combinations (3 SIZING\_SCALE $\times$ 2 BRAKE\_HWM\_WEEKS values), enabling exhaustive evaluation across all 15 IS windows within a single parallelised session. The small grid size reflects the anchored IS/OOS walk-forward methodology \citep{Pardo2008}, in which a narrow, hypothesis-driven parameter space is preferred over broad combinatorial search to reduce overfitting risk.
 
 
 \section{Strategy Enhancement Methodology}
@@ -403,7 +403,7 @@ Several directions merit investigation: extending the strategy to include short 
 Member & Contribution \\
 \hline
 \textbf{Guo Zi Qiang Robin} & Principal architect of the full strategy across v1--v5.3. Designed and implemented the five-gate buy pipeline, path-dependent entry sizing (v3), path-aware exit logic (v4), and all dynamic capital allocation innovations (v5.3): dynamic base target (C1), continuous vol\_mult (C2), MAX\_POSITIONS adjustment (C3), PATH\_A\_MULT refinement (C4), Path B MACD confirmation tracking (C5), C-low RSI grace period (C6), and rolling HWM drawdown brake (C7). Led identification and resolution of the cash accumulation problem. Executed WFO v2. Conducted signal independence EDA (Section C), path classifier pre-distribution (Section D), and cross-sectional momentum scoring (Section J). \\
-\textbf{Cai Wenjing} & Designed and executed the Walk-Forward Optimisation framework (WFO v1 and WFO v2), including the precompute-once/simulate-many template architecture, successive halving, composite DD-penalised scoring, and BS7 crash-window sensitivity testing. Conducted volatility regime characterisation (Section E). Researched Bayesian optimisation as an alternative approach before concluding WFO was more appropriate for the anchored IS/OOS structure. \\
+\textbf{Cai Wenjing} & Designed and executed the Walk-Forward Optimisation framework (WFO v1 and WFO v2), including the precompute-once/simulate-many template architecture, exhaustive grid evaluation, composite DD-penalised scoring, and BS7 crash-window sensitivity testing. Conducted volatility regime characterisation (Section E). Researched Bayesian optimisation as an alternative approach before concluding WFO was more appropriate for the anchored IS/OOS structure. \\
 \textbf{Ng Kay Cheng} & Contributed to implementation and refinement of the v5 trailing stop mechanism, including high-water mark update logic and breakeven guarantee validation. Contributed to price feature correlation analysis and data density visualisations (Sections A and F). \\
 \textbf{Hing Zheng Wen} & Contributed to the v5 trailing stop mechanism and path-aware hard stop differentiation. Conducted exit threshold calibration analysis (Section H), including forward return distribution study validating stop-loss and trailing stop levels. \\
 \textbf{Fang Chong} & Contributed to data cleaning and analytics calculation infrastructure, including parallelised per-ticker indicator pipeline and OPT-9 (bb\_mid alias). Conducted earnings transcript word frequency analysis (Section I) validating the three-tier keyword scoring scheme. \\
@@ -421,7 +421,7 @@ Tool & Usage \\
 \hline
 GitHub Copilot & Code completion and syntax suggestions during indicator implementation and WFO framework development. All generated code was reviewed, validated against backtest outputs, and modified to meet project requirements. \\
 ChatGPT (GPT-4) & Consulted for clarification of FinBERT API behaviour and for initial literature review on Walk-Forward Optimisation methodology. No model-generated text was used verbatim in this report. \\
-Claude (Anthropic) & Consulted for debugging complex pandas vectorisation issues and for review of the successive-halving implementation logic. \\
+Claude (Anthropic) & Consulted for debugging complex pandas vectorisation issues and for review of the WFO grid-search implementation logic. \\
 \hline
 \end{tabular}
 

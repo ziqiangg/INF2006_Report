@@ -209,7 +209,7 @@ Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selec
 
 \subsubsection{Sentiment Cache Design}
 
-An additive cache accumulates FinBERT results keyed by (ticker, quarter). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached. On T4 GPU (batch size 256, \texttt{max\_length}$=512$), this completes in approximately 30--60 minutes. On CPU deployment (batch size 16, \texttt{max\_length}$=128$), a cap of 2,000 transcripts per \texttt{evaluate()} call is applied, with uncached tickers passing Gate~3 unconditionally.
+An additive cache accumulates FinBERT results keyed by (ticker, quarter). The cache is populated once before the simulation loop begins, eliminating redundant inference. For the combined Dev + Val run, 18,209 unique transcripts are cached. On T4 GPU (batch size 256, \texttt{max\_length}$=512$), this completes in approximately 12 minutes. On CPU deployment (batch size 16, \texttt{max\_length}$=128$), a cap of 2,000 transcripts per \texttt{evaluate()} call is applied, with uncached tickers passing Gate~3 unconditionally.
 
 \subsubsection{Sentiment Gate Calibration (C8)}
 \label{sec:sentiment-gate}

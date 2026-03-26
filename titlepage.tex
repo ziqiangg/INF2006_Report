@@ -33,8 +33,14 @@
 
 %----------------------------------------------------------------------------------------
 %	AUTHOR + INSTRUCTOR SECTION (side by side)
+%
+% FIX: Original used two \begin{minipage}[t]{0.5\textwidth} blocks separated
+% by ~ (a non-breaking inter-word space).  The combined width was therefore
+% \textwidth + ~space, causing a 6.93pt overfull \hbox at titlepage lines 37-59.
+% Fix: reduce each minipage to 0.48\textwidth and replace ~ with \hfill so the
+% two panels fill exactly \textwidth with a flexible gap between them.
 %----------------------------------------------------------------------------------------
-\begin{minipage}[t]{0.5\textwidth}
+\begin{minipage}[t]{0.48\textwidth}
     \begin{flushleft} \large
         \textbf{Group \gid}\\
         \reportauthorOne~(ID: \cidOne)\\
@@ -45,8 +51,8 @@
         \reportauthorSix~(ID: \cidSix)\\
     \end{flushleft}
 \end{minipage}
-~
-\begin{minipage}[t]{0.5\textwidth}
+\hfill
+\begin{minipage}[t]{0.48\textwidth}
     \begin{flushright} \large
         \textbf{Instructors}\\
         Alvin Chan, \textit{\small Module Lead}\\
@@ -66,4 +72,3 @@
 
 
 \end{titlepage}
-

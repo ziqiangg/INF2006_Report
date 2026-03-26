@@ -129,19 +129,32 @@ The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A
 
 \section{Strategy Enhancement Methodology}
 
+The enhanced strategy is implemented as a Python subclass (\texttt{EnhancedStrategy(BaseStrategy)}) that overrides all five core methods of the baseline: \texttt{clean\_data} (adds minimum-history filtering, return clipping, and forward-fill limits), \texttt{calculate\_analytics} (replaces the single MA-50 computation with a parallelised six-family indicator pipeline), \texttt{llm\_analysis} (replaces raw last-2000-character FinBERT inference with an O(1) lookup into the precomputed sentiment cache), \texttt{make\_decision} (replaces the single-signal buy/sell logic with the five-gate buy pipeline and six-mechanism exit logic described below), and \texttt{evaluate} (adds the weekly HWM brake update loop and per-week analytics caching). Only \texttt{set\_data} is inherited unchanged.
+
 \subsection{Technical Indicators and Features}
 
 \subsubsection{Indicator Set}
 
-The baseline strategy uses a single 50-day moving average as both regime filter and entry signal. The enhanced strategy computes six distinct indicator families across all tickers:
+The baseline strategy relies on a single indicator---the 50-day moving average---using price $>$ MA-50 as the entry signal, price $<$ MA-50 as the exit trigger, and a fixed $-20\%$ stop-loss. The enhanced strategy replaces this with six indicators, each serving a specific role in the buy pipeline, exit logic, or position-sizing regime:
+
+\paragraph{Entry indicators.}
+Four indicators drive the buy gates:
 
 \begin{itemize}
-    \item \textbf{MA-50 and MA-200}: Short- and long-term trend direction. MA-200 serves as the primary regime filter (Gate 1): positions are only initiated when price is above the 200-day moving average, restricting entries to bull market conditions.
-    \item \textbf{RSI (14-period)}: Momentum oscillator normalised to [0, 100]. Entry requires RSI $\in [40, 75]$: below 40 signals genuine weakness that may not recover within the holding horizon; above 75 signals overbought conditions with high reversal probability.
+    \item \textbf{MA-200}: Long-term trend direction. Serves as the primary regime filter (Gate 1): positions are only initiated when price is above the 200-day moving average, restricting entries to bull market conditions.
+    \item \textbf{RSI (14-period)}: Momentum oscillator normalised to [0, 100] \citep{Wilder1978}. Entry requires RSI $\in [40, 75]$: below 40 signals genuine weakness that may not recover within the holding horizon; above 75 signals overbought conditions with high reversal probability.
     \item \textbf{MACD (12/26/9)}: The MACD histogram captures momentum acceleration. A positive histogram value confirms upward-accelerating short-term momentum.
-    \item \textbf{Bollinger Bands (20-period, 2 std)}: Band position and bandwidth are computed. The mid-line is aliased to MA-20 for computational efficiency.
-    \item \textbf{Volume Ratio}: Current week's volume divided by the 20-period average. A ratio $\geq 1.2\times$ indicates above-average market participation, confirming that the price move is supported by broad trading activity.
-    \item \textbf{ATR (14-period, 52-week percentile)}: The 52-week percentile rank of the Average True Range provides a normalised volatility regime measure, used for both continuous position-size scaling and correlation-threshold adjustment.
+    \item \textbf{Volume Ratio}: Current week's volume divided by the 20-period average \citep{Blume1994}. A ratio $\geq 1.2\times$ indicates above-average market participation, confirming that the price move is supported by broad trading activity. This replaced the Bollinger Band mid-line gate in v2 to break indicator collinearity (Section~\ref{sec:version-progression}).
+\end{itemize}
+
+\paragraph{Exit indicator.}
+\begin{itemize}
+    \item \textbf{MA-50}: Used exclusively in the bearish 2-of-3 exit signal (price $<$ MA-50 is one of three sell conditions; see Section~\ref{sec:exit-logic}). MA-50 is deliberately excluded from buy gates: MA-200 provides the regime filter on entry, while MA-50's shorter lookback offers earlier detection of trend deterioration on exit. This asymmetry ensures the entry regime filter requires a longer confirmation horizon than the exit deterioration signal.
+\end{itemize}
+
+\paragraph{Volatility regime indicator.}
+\begin{itemize}
+    \item \textbf{ATR (14-period, 52-week percentile)}: ATR operates at the universe level rather than as a per-ticker gate. The cross-sectional median of per-ticker ATR-14 values is computed each week, then ranked against its own 52-week history to produce \texttt{vol\_pct}. This percentile drives the continuous volatility multiplier (Gate 4a) that scales position sizes proactively as market-wide risk rises.
 \end{itemize}
 
 \subsubsection{Five-Gate Buy Pipeline}
@@ -150,7 +163,7 @@ Entry decisions pass through five sequential gates:
 
 \textbf{Gate 1 (Regime):} Price $>$ MA-200. Restricts entries to bull market regimes (66.8\% of ticker-weeks pass).
 
-\textbf{Gate 2 (Signals):} Any 2-of-3 of RSI $\in [40, 75]$, MACD histogram $> 0$, volume ratio $\geq 1.2\times$. This generates five path types with different expected false-positive rates (Section~\ref{sec:path-sizing}).
+\textbf{Gate 2 (Signals):} Any 2-of-3 of RSI $\in [40, 75]$, MACD histogram $> 0$, volume ratio $\geq 1.2\times$. This generates five path types with different expected false-positive rates (Section~\ref{sec:path-sizing}). Note that MA-50 is not part of the buy signal set; it is reserved for exit logic where its shorter lookback provides earlier deterioration detection than MA-200.
 
 \textbf{Gate 3 (Sentiment):} FinBERT sentiment score $\geq -0.10$. Blocks entry only during explicitly bearish earnings communications. The threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3 (C8) to preserve equivalent statistical stringency under CPU-inference score compression (see Section~\ref{sec:sentiment-gate} for calibration details). Tickers with no transcript pass unconditionally.
 
@@ -174,12 +187,12 @@ D (all\_three) & RSI + MACD + Volume & $1.00\times$ & All dimensions confirm \\
 A (RSI+MACD) & Momentum alignment & $0.90\times$ & Market participation absent \\
 B (RSI+Vol) & Participation present, MACD weak & $0.75\times$ & Momentum unconfirmed \\
 C-low & MACD+Vol, RSI 35--40 & $0.75\times$ & RSI in caution zone \\
-C-high & MACD+Vol, RSI 40--75 & $0.50\times$ & Anomalous combination \\
+C-high & MACD+Vol, RSI $> 75$ or unavailable & $0.50\times$ & Overbought or data-sparse \\
 \hline
 \end{tabular}
 \end{center}
 
-Path A reduces the multiplier from 1.0$\times$ to 0.90$\times$ (C4): volume is structurally orthogonal to RSI and MACD, so its absence represents a genuine reduction in conviction. Path D retains 1.0$\times$.
+Path A reduces the multiplier from 1.0$\times$ to 0.90$\times$ (C4): volume is structurally orthogonal to RSI and MACD, so its absence represents a genuine reduction in conviction. Path D retains 1.0$\times$. Path C-high receives the lowest multiplier ($0.50\times$) and tightest stop-loss ($-10\%$) because it represents entries where MACD and volume confirm but RSI signals either overbought conditions (RSI $> 75$) or is unavailable---the least-confirmed signal combination.
 
 \begin{figure}[H]
 \centering
@@ -244,10 +257,10 @@ Positions are exited via one of six mechanisms, listed in order of priority:
 \begin{enumerate}[(1)]
     \item \textbf{HWM Drawdown Brake}: If the rolling 52-week portfolio drawdown from its high-water mark (HWM) exceeds tiered thresholds (0\% $\to$ 1.00$\times$; $-5\%$ $\to$ 0.75$\times$; $-10\%$ $\to$ 0.50$\times$; $-20\%$ $\to$ 0.25$\times$ floor), the buy-side multiplier is compressed. This is not a sell signal but reduces new position sizes during sustained drawdown.
     \item \textbf{Path-Differentiated Stop-Loss}: Global stop at $-15\%$ (paths D/A/B); C-high stop at $-10\%$; C-low stop at $-12\%$. C-high positions (the least-confirmed signal combination) receive the tightest stop.
-    \item \textbf{Trailing Stop}: Activates at $+20\%$ price appreciation above entry. Trailing gap of $12\%$ from the high-water mark. Backstop close at $+80\%$ (locks profit at near-peak).
+    \item \textbf{Trailing Stop}: Activates at $+20\%$ price appreciation above entry. Trailing gap of $12\%$ from the high-water mark. Backstop close at $+80\%$ (locks profit at near-peak). The WFO-selected parameter pair creates a mathematical breakeven guarantee: the worst-case trailing stop exit occurs at entry $\times\, 1.20 \times 0.88 = $ entry $\times\, 1.056$, guaranteeing at least $+5.6\%$ profit once the trailing stop activates---the trailing stop can never convert a winning position into a loss.
     \item \textbf{Take Profit}: Fixed $+80\%$ take-profit for positions that reach the target without triggering the trailing stop.
     \item \textbf{Path B Timeout}: Path B (RSI + volume without MACD confirmation) exits after 10 weeks if MACD histogram remains negative. The $\text{macd\_confirmed}$ flag (C5) suppresses this timeout once MACD turns positive post-entry.
-    \item \textbf{Bearish 2-of-3}: Exits when the opposite signal pattern holds (2-of-3 indicators turn bearish). For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits.
+    \item \textbf{Bearish 2-of-3}: Exits when 2-of-3 bearish conditions hold: RSI $< 35$ (below \texttt{RSI\_SELL}), MACD histogram $< 0$, or price $<$ MA-50. For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits. The sell signal set is deliberately asymmetric with the buy signal set: volume ratio is absent from sell signals (volume surges confirm entries but their absence does not signal deterioration), and MA-50 replaces MA-200 (its shorter lookback detects trend breaks faster than the regime filter).
 \end{enumerate}
 
 \begin{figure}[H]

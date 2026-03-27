@@ -118,7 +118,7 @@ The 52-week ATR percentile provides regime-aware risk measurement. Pairwise corr
 
 \subsection{Dev vs.\ Validation Regime Comparison}
 
-Aggregate statistics are near-identical: annualised return 19.92\% (Dev) vs.\ 17.00\% (Val), annualised volatility 38.01\% vs.\ 37.62\%, raw Sharpe 0.524 vs.\ 0.452. However, the Val split contains episodes without Dev precedent: the COVID-19 crash (S\&P $-34\%$ in 33 days), the fastest Fed rate-hike cycle since 1980, and the SVB banking crisis. The path distribution across these regimes (Val: all-three 18.1\%, path-A 58.7\%, path-B 22.1\%) is structurally identical to Dev (19.4\%, 58.4\%, 21.1\%), confirming the signal architecture captures a persistent cross-market phenomenon.
+Aggregate statistics are near-identical: annualised return 19.92\% (Dev) vs.\ 17.00\% (Val), annualised volatility 38.01\% vs.\ 37.62\%, raw Sharpe 0.524 vs.\ 0.452. However, the Val split contains episodes without Dev precedent: the COVID-19 crash (S\&P $-34\%$ in 33 days), the fastest Fed rate-hike cycle since 1980, and the SVB banking crisis. The enhanced strategy's path distribution across these regimes (Val: all-three 16.6\%, path-A 58.8\%, path-B 23.5\%) is structurally identical to Dev (18.9\%, 58.4\%, 21.7\%), confirming the signal architecture captures a persistent cross-market phenomenon.
 
 \subsection{Key Findings and Strategy Implications}
 
@@ -535,7 +535,7 @@ visualizes this improvement across all metrics simultaneously.
 
 The strategy draws on three bodies of technical literature. On technical indicator construction, the RSI and MACD implementations follow standard practitioner definitions \citep{Wilder1978}, while Bollinger Bands follow the original formulation \citep{Bollinger2002}. The volume-price relationship as a signal of market participation has been documented in market microstructure literature \citep{Blume1994}.
 
-On NLP in finance, the FinBERT model \citep{Araci2019} was selected for its fine-tuning on financial text corpora. The finding that management tone in earnings calls contains incremental predictive information is consistent with \citet{Huang2014}. The three-tier paragraph selection scheme aligns with the ``levels of abstractness'' approach in financial text analysis \citep{Loughran2011}.
+On NLP in finance, the FinBERT model \citep{Araci2019} was selected for its lightweight sentiment analysis capabilities on financial corpus. The finding that management tone in earnings calls contains incremental predictive information is consistent with \citet{Huang2014}. The three-tier paragraph selection scheme aligns with the ``levels of abstractness'' approach in financial text analysis \citep{Loughran2011}.
 
 On volatility-managed portfolios, the continuous volatility scaling approach draws on \citet{Moreira2017}, who demonstrate that scaling equity exposure inversely with realised variance improves Sharpe ratios. The 52-week ATR percentile is used as a leading indicator of variance rather than contemporaneous variance.
 

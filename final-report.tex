@@ -155,7 +155,7 @@ Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 \textbf{OPT-2: Additive Analytics Cache.} Technical indicators are precomputed once across the full split and stored in a vectorised lookup structure. The additive design enables WFO to share a single cache across all IS/OOS windows.
 
 \textbf{OPT-3 and OPT-4: FinBERT Truncation and Batching.} On GPU (T4), maximum input length is fixed at 1,200 characters (after keyword extraction) with \texttt{max\_length}$=512$ tokens and batch size of 256, maximising GPU utilisation. On CPU deployment, these are reduced to 500 characters, \texttt{max\_length}$=128$ tokens, and batch size of 16 to fit L3 cache constraints.
-% NOTE: original text described only the GPU configuration (1200 chars / 512 tokens / batch 256).
+% NOTE: OLD text described only the GPU configuration (1200 chars / 512 tokens / batch 256).
 % The CPU deployment version (Cell 30) uses 500 chars / 128 tokens / batch 16. Both are correct
 % for their respective environments: GPU for WFO precomputation, CPU for leaderboard deployment.
 
@@ -271,7 +271,7 @@ Path A reduces the multiplier from 1.0$\times$ to 0.90$\times$ (C4): volume is s
 
 \subsubsection{Three-Tier Keyword Paragraph Selection}
 
-Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selection scheme extracts the highest-scoring paragraphs by keyword density: \textbf{Tier~1} (weight $1\times$) covers reporting boilerplate (\textit{quarter}, \textit{results}, \textit{balance sheet}); \textbf{Tier~2} (weight $2\times$) covers financial performance (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}); \textbf{Tier~3} (weight $3\times$) covers forward-looking guidance (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}), which appears in 70.3\% of transcripts but carries the highest signal value. Selected paragraphs are concatenated to a maximum of 500 characters or 1,200 characters (WFO) before FinBERT inference. The resulting score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
+Because 99.4\% of transcripts exceed FinBERT's token limit, the three-tier selection scheme extracts the highest-scoring paragraphs by keyword density: \textbf{Tier~1} (weight $1\times$) covers reporting boilerplate (\textit{quarter}, \textit{results}, \textit{balance sheet}); \textbf{Tier~2} (weight $2\times$) covers financial performance (\textit{revenue}, \textit{earnings}, \textit{margin}, \textit{growth}); \textbf{Tier~3} (weight $3\times$) covers forward-looking guidance (\textit{outlook}, \textit{guidance}, \textit{forecast}, \textit{expect}, \textit{confident}), which appears in 70.3\% of transcripts but carries the highest signal value. Selected paragraphs are concatenated to a maximum of 500 characters before FinBERT inference. The resulting score is $\text{score} = p_{\text{positive}} - p_{\text{negative}}$, with $p_{\text{neutral}}$ discarded.
 
 \subsubsection{Sentiment Cache Design}
 

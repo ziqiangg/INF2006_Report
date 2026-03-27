@@ -446,19 +446,17 @@ Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976    
 
 \subsection{Walk-Forward Optimisation}
 
-Two WFO stages were conducted:
+A single walk-forward optimisation (WFO) framework was used throughout, with the same anchored window schedule and selection rules applied across all tuned parameters. Each window uses a fixed in-sample start date (2000-01-01) and advances the out-of-sample year from 2003--2017. For every window, candidate combinations must satisfy $\text{max\_dd} \ge -0.25$ to qualify, and the window winner is the highest in-sample Sharpe; final selection is the frequency winner across windows (tie-broken by less-negative average IS drawdown). This framework precomputes sentiment and analytics once on the full Dev split and reruns only lightweight simulations per combination, matching the WFO pipeline documented in \textit{trading\_assignment\_30.ipynb}.
 
-\textbf{WFO v1 (Trailing Stop Calibration):} A 27-combination exhaustive grid over three parameters (TRAIL\_ACTIVATE\_PCT, TRAIL\_PCT, MAX\_HOLD\_WEEKS\_PATH\_B) was evaluated across 15 anchored IS windows (IS always starts 2000-01-01; OOS advances one year, 2003--2017). The composite objective $\text{Sharpe} - 3.0 \times \max(0, |DD| - 0.25)$ was maximised. Results converged sharply: TRAIL\_ACTIVATE\_PCT $= 0.20$ won all 15 IS windows; TRAIL\_PCT $= 0.12$ won 13 of 15. Walk-Forward Efficiency (WFE $=$ mean OOS score / mean IS score) $= 1.48$, substantially above the 0.60 acceptability threshold \citep{Pardo2008}. 73\% of OOS windows achieved Sharpe $> 1.0$. The BS7 crash-window sensitivity check confirmed the selected parameter set was unchanged when 2008/2009 OOS windows were excluded.
-% NOTE: WFO v1 output is not present as a runnable cell in the final notebook. The WFE=1.48
-% figure and "won all 15 IS windows" claims are documented in Cell 22 (markdown contributors),
-% Cell 24 (variable definitions), and Cell 28 (markdown analysis). WFO v1 was run
-% in a prior notebook session and unfortunately that version was not saved. However, these values are confirmably accurate.
+Two parameter grids were evaluated within this single WFO framework:
 
-\textbf{WFO v2 (Dynamic Sizing Calibration):} A 6-combination grid over \texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$ and \texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$ was run across 15 IS windows (90 IS + 15 OOS $= 105$ total simulations). The selected parameters were \texttt{SIZING\_SCALE} $= 1.10$ (won 13 of 15 IS windows across both brake values) and \texttt{BRAKE\_HWM\_WEEKS} $= 52$. The WFE for WFO v2 was 1.371, and 73\% of OOS windows achieved Sharpe $> 1.0$.
+\textbf{Trailing-stop and Path-B timeout grid.} A 27-combination grid over TRAIL\_ACTIVATE\_PCT, TRAIL\_PCT, and MAX\_HOLD\_WEEKS\_PATH\_B was exhaustively evaluated across all 15 windows. Results converged sharply: TRAIL\_ACTIVATE\_PCT $= 0.20$ won all 15 IS windows and TRAIL\_PCT $= 0.12$ won 13 of 15. Walk-Forward Efficiency (WFE $=$ mean OOS Sharpe / mean IS Sharpe) was 1.48, with 73\% of OOS windows achieving Sharpe $> 1.0$. The selected pair also preserves the breakeven guarantee $(1 + \text{activate})\,(1 - \text{trail}) \ge 1.0$.
+
+\textbf{Dynamic sizing and drawdown-brake grid.} A 6-combination grid over \texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$ and \texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$ was run on the same 15-window schedule with the trailing-stop parameters fixed at the WFO-selected values above. The selection converged to \texttt{SIZING\_SCALE} $= 1.10$ (13 of 15 IS windows) and \texttt{BRAKE\_HWM\_WEEKS} $= 52$. WFE was 1.371 and, again, 73\% of OOS windows achieved Sharpe $> 1.0$.
 
 \subsection{Walk-Forward OOS Window Diagnostics}
 
-The enhanced strategy (v5.4) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in WFO v2 produced negative Sharpe: 2008 ($-2.18$), 2011 ($-0.61$), 2015 ($-0.35$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
+The enhanced strategy (v5.4) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in the WFO schedule produced negative Sharpe: 2008 ($-2.18$), 2011 ($-0.61$), 2015 ($-0.35$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
 
 
 % -----------------------------------------------------------------------

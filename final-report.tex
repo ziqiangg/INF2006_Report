@@ -446,7 +446,7 @@ Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976    
 
 \subsection{Walk-Forward Optimisation}
 
-A single walk-forward optimisation (WFO) framework was used throughout, with the same anchored window schedule and selection rules applied across all tuned parameters. Each window uses a fixed in-sample start date (2000-01-01) and advances the out-of-sample year from 2003--2017. For every window, candidate combinations must satisfy $\text{max\_dd} \ge -0.25$ to qualify, and the window winner is the highest in-sample Sharpe; final selection is the frequency winner across windows (tie-broken by less-negative average IS drawdown). This framework precomputes sentiment and analytics once on the full Dev split and reruns only lightweight simulations per combination, matching the WFO pipeline documented in \textit{trading\_assignment\_30.ipynb}.
+A single walk-forward optimisation (WFO) framework was used throughout, with the same anchored window schedule and selection rules applied across all tuned parameters. Each window uses a fixed in-sample start date (2000-01-01) and advances the out-of-sample year from 2003--2017. For every window, candidate combinations must satisfy $\text{max\_dd} \ge -0.25$ to qualify, and the window winner is the highest in-sample Sharpe; final selection is the frequency winner across windows (tie-broken by less-negative average IS drawdown). This framework precomputes sentiment and analytics once on the full Dev split and reruns only lightweight simulations per combination.
 
 Two parameter grids were evaluated within this single WFO framework:
 

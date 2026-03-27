@@ -114,7 +114,7 @@ Exploratory Data Analysis (EDA) on a stratified 30-ticker sample of the Dev spli
 
 \subsection{Volatility \& Correlation}
 
-The 26-week ATR percentile provides regime-aware risk measurement. Pairwise correlation analysis on a rolling 60-day window for a 30-ticker sample, reveals a mean absolute correlation of 0.147 during normal conditions, with 0\% of ticker pairs exceeding the 0.70 threshold. This threshold was selected in Gate~4b as an emergency mechanism during stress periods, cross-sectional correlations rise sharply, motivating continuous ATR-percentile position scaling, regime-aware capacity controls, and correlation-threshold gating.
+The 52-week ATR percentile provides regime-aware risk measurement. Pairwise correlation analysis on a rolling 60-day window for a 30-ticker sample, reveals a mean absolute correlation of 0.147 during normal conditions, with 0\% of ticker pairs exceeding the 0.70 threshold. This threshold was selected in Gate~4b as an emergency mechanism during stress periods, cross-sectional correlations rise sharply, motivating continuous ATR-percentile position scaling, regime-aware capacity controls, and correlation-threshold gating.
 
 \subsection{Dev vs.\ Validation Regime Comparison}
 
@@ -163,7 +163,7 @@ Nine targeted optimisations (OPT-1 through OPT-9) were implemented:
 
 \subsection[Performance Measurements]{Performance Measurements}
 
-The WFO precomputation step completes in approximately 45 minutes on a T4 GPU. A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The parameter grid was deliberately restricted to 6 combinations (3 SIZING\_SCALE $\times$ 2 BRAKE\_HWM\_WEEKS values), enabling exhaustive evaluation across all 15 IS windows within a single parallelised session. The small grid size reflects the anchored IS/OOS walk-forward methodology \citep{Pardo2008}, in which a narrow, hypothesis-driven parameter space is preferred over broad combinatorial search to reduce overfitting risk.
+A single simulation run completes in 7 minutes, enabling the full 90-simulation IS grid to run in 90 minutes via \texttt{joblib} parallelisation. The parameter grid was deliberately restricted to 6 combinations (3 SIZING\_SCALE $\times$ 2 BRAKE\_HWM\_WEEKS values), enabling exhaustive evaluation across all 15 IS windows within a single parallelised session. The small grid size reflects the anchored IS/OOS walk-forward methodology \citep{Pardo2008}, in which a narrow, hypothesis-driven parameter space is preferred over broad combinatorial search to reduce overfitting risk.
 
 % -----------------------------------------------------------------------
 % \clearpage ensures §5 heading never shares a page-end with §4.3 content.
@@ -452,7 +452,7 @@ Two parameter grids were evaluated within this single WFO framework:
 
 \textbf{Trailing-stop and Path-B timeout grid.} A 27-combination grid over TRAIL\_ACTIVATE\_PCT, TRAIL\_PCT, and MAX\_HOLD\_WEEKS\_PATH\_B was exhaustively evaluated across all 15 windows. Results converged sharply: TRAIL\_ACTIVATE\_PCT $= 0.20$ won all 15 IS windows and TRAIL\_PCT $= 0.12$ won 13 of 15. Walk-Forward Efficiency (WFE $=$ mean OOS Sharpe / mean IS Sharpe) was 1.48, with 73\% of OOS windows achieving Sharpe $> 1.0$. The selected pair also preserves the breakeven guarantee $(1 + \text{activate})\,(1 - \text{trail}) \ge 1.0$.
 
-\textbf{Dynamic sizing and drawdown-brake grid.} A 6-combination grid over \texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$ and \texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$ was run on the same 15-window schedule with the trailing-stop parameters fixed at the WFO-selected values above. The selection converged to \texttt{SIZING\_SCALE} $= 1.10$ (13 of 15 IS windows) and \texttt{BRAKE\_HWM\_WEEKS} $= 26$. WFE was 1.371 and, again, 73\% of OOS windows achieved Sharpe $> 1.0$.
+\textbf{Dynamic sizing and drawdown-brake grid.} A 6-combination grid over \texttt{SIZING\_SCALE} $\in \{1.10, 1.20, 1.30\}$ and \texttt{BRAKE\_HWM\_WEEKS} $\in \{26, 52\}$ was run on the same 15-window schedule with the trailing-stop parameters fixed at the WFO-selected values above. The selection converged to \texttt{SIZING\_SCALE} $= 1.10$ (13 of 15 IS windows) and \texttt{BRAKE\_HWM\_WEEKS} $= 26$. WFE was 1.467, with 73\% of OOS windows achieving Sharpe $> 1.0$, 80\% achieving positive returns, and 100\% maintaining maximum drawdowns better than $-30\%$.
 
 \subsection{Walk-Forward OOS Window Diagnostics}
 

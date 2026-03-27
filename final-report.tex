@@ -1,7 +1,7 @@
 \documentclass[11pt,twoside,a4paper]{article}
 
 \newcommand{\reporttitle}{Algorithmic Trading Strategy Development and Optimisation}
-\newcommand{\gid}{X}
+\newcommand{\gid}{8}
 \newcommand{\reportauthorOne}{Guo Zi Qiang Robin}
 \newcommand{\cidOne}{2400989}
 \newcommand{\reportauthorTwo}{Tan Zi Xu}
@@ -176,12 +176,12 @@ Complementary CPU phase-level profiling is shown in Section~\ref{sec:base-enhanc
 \subsection{Base vs.\ Enhanced Strategy Profiling}
 \label{sec:base-enhanced-profiling}
 
-On identical Dev/Val splits, enhanced v5.3 reduces total runtime from 4.2 min to 1.1 min on Dev ($4.0\times$) and from 1.5 min to 40.1 s on Val ($2.2\times$). In the baseline, the dominant costs are analytics lookup build, simulation initialisation, and the simulation loop; in the enhanced pipeline, costs shift to one-off FinBERT precompute and vectorised analytics, while lookup and loop phases are reduced via additive caches and bisect-based retrieval.
+On identical Dev/Val splits, enhanced v5.4 CPU reduces total runtime from 3.9 min to 2.2 min on Dev ($1.8\times$), while Val runtime increases from 1.4 min to 1.6 min ($0.9\times$). In the baseline, the dominant costs are analytics lookup build, simulation initialisation, and the simulation loop; in the enhanced pipeline, those phases are materially reduced via additive caches and bisect-based retrieval, but this is offset on Val by one-off FinBERT sentiment precompute and enhanced analytics construction.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/fig_base_enhanced_profiling.png}
-\caption{CPU phase-level profiling of baseline vs. enhanced v5.3 on Dev/Val splits. Enhanced v5.3 achieves lower total runtime despite additional NLP and multi-indicator logic, supporting the practical impact of OPT-1 through OPT-9.}
+\caption{CPU phase-level profiling of baseline vs. enhanced v5.4 on Dev/Val splits. Enhanced v5.4 is faster on Dev via cached lookup and simulation-loop reductions, while Val shows a small net slowdown because FinBERT and enhanced analytics precompute dominate at the smaller split size.}
 \label{fig:base-enhanced-profiling}
 \end{figure}
 
@@ -211,7 +211,7 @@ Four indicators drive the buy gates:
 Three technical indicators are used in exit logic (Section~\ref{sec:exit-logic}):
 \begin{itemize}
     \item \textbf{RSI (14-period):} RSI $< 35$ contributes one bearish vote in the bearish technical exit check.
-    \item \textbf{MACD (12/26/9):} MACD histogram $< 0$ contributes one bearish vote in the same exit check.
+    \item \textbf{MACD (12/26/9):} MACD contributes one bearish vote when the histogram is negative and declining (C12).
     \item \textbf{MA-50:} Price $<$ MA-50 contributes one bearish vote in the same exit check. MA-50 remains exit-only in the strategy design: MA-200 provides the long-horizon entry regime filter, while MA-50's shorter lookback supports earlier deterioration detection on exit.
 \end{itemize}
 
@@ -228,7 +228,7 @@ Entry decisions pass through five sequential gates:
 
 \textbf{Gate~2 (Signals):} Any 2-of-3 of RSI $\in [40, 75]$, MACD histogram $> 0$, volume ratio $\geq 1.2\times$. This generates five path types with different expected false-positive rates (Section~\ref{sec:path-sizing}). Note that MA-50 is not part of the buy signal set; it is reserved for exit logic where its shorter lookback provides earlier deterioration detection than MA-200.
 
-\textbf{Gate~3 (Sentiment):} FinBERT sentiment score $\geq -0.10$. Blocks entry only during explicitly bearish earnings communications. The threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3 (C8) to preserve equivalent statistical stringency under CPU-inference score compression (see Section~\ref{sec:sentiment-gate} for calibration details). Tickers with no transcript pass unconditionally.
+\textbf{Gate~3 (Sentiment):} FinBERT sentiment score $\geq -0.10$. Blocks entry only during explicitly bearish earnings communications. The threshold was recalibrated from $-0.25$ to $-0.10$ in v5.3 (C8) and retained in v5.4 (see Section~\ref{sec:sentiment-gate}). Tickers with no transcript pass unconditionally.
 
 \textbf{Gate~4a (Volatility scaling):} The continuous multiplier $\text{vol\_mult} = \max(0.40, 1.0 - 0.60 \times \text{vol\_pct})$ scales position size. This is a sizing step, not a blocking gate.
 
@@ -281,7 +281,7 @@ An additive cache accumulates FinBERT results keyed by (ticker, date). The cache
 \subsubsection{Sentiment Gate Calibration (C8)}
 \label{sec:sentiment-gate}
 
-The SENTIMENT\_BLOCK threshold was recalibrated from $-0.25$ to $-0.10$ in the strategy's final iteration v5.3. On the full Dev corpus ($N=9{,}675$), the CPU-inference score distribution has mean $0.0106$, standard deviation $0.0372$, placing the $-0.10$ threshold at $-3.0\sigma$ below the mean. The block rate is 0.04\%, confirming that Gate~3 fires only on extreme negative-tail transcripts. The C9 mechanism (Section~\ref{sec:exit-logic}) converts the broader negative-score region (46.4\% of scored entries) into faster exit signals rather than entry blocks.
+The SENTIMENT\_BLOCK threshold is calibrated to $-0.10$. On the full Dev corpus ($N=9{,}675$), the CPU-inference score distribution has mean $0.0106$, standard deviation $0.0372$, placing the $-0.10$ threshold at $-3.0\sigma$ below the mean; the full range of sentiment scores is $-0.4010$ to $0.7892$. The block rate is 0.04\%, confirming that Gate~3 fires only on extreme negative-tail transcripts. The C9 mechanism (Section~\ref{sec:exit-logic}) converts the broader negative-score region (46.4\% of scored entries) into faster exit signals rather than entry blocks.
 
 \begin{figure}[H]
 \centering
@@ -301,16 +301,28 @@ This subsection describes the dynamic position sizing, continuous volatility sca
 
 \subsubsection{Dynamic Position Sizing}
 
-The v5.3 base position target is:
+The v5.4 base position target is:
 \[
 \text{base\_target} = \text{SIZING\_SCALE} \times \frac{\text{portfolio\_value}}{\text{MAX\_POSITIONS}} = 1.10 \times \frac{\text{portfolio\_value}}{18}
 \]
 
-SIZING\_SCALE $= 1.10$ compensates for average path multiplier underutilisation ($\approx 0.83$ across the observed path distribution), targeting approximately 10--12\% idle cash at normal volatility. Prior to v5.3, a static \$5,000 position target caused idle cash to grow monotonically as the portfolio compounded: at a terminal Dev value of $\approx\$316{,}000$, each position represented only $\approx 1.6\%$ of portfolio vs.\ the intended $\approx 5\%$.
+SIZING\_SCALE $= 1.10$ compensates for average path multiplier underutilisation ($\approx 0.83$ across the observed path distribution), targeting approximately 10--12\% idle cash at normal volatility. Prior to v5.3, a static \$5,000 position target caused idle cash to grow monotonically as the portfolio compounded: at a terminal Dev value of $\approx\$316{,}000$, each position represented only $\approx 1.6\%$ of portfolio vs.\ the intended $\approx 5\%$. In v5.4 (C10), this base target is further modulated by a bounded sentiment-size adjustment (clipped to $\pm 10\%$), preserving directional conviction while avoiding over-weighting noisy short-text sentiment estimates.
 
-In implementation, the effective order target also applies a minimum notional floor:
+In implementation, C10 defines
 \[
-\text{effective\_target} = \max\!\left(100,\; \left\lfloor\text{base\_target} \times \text{path\_mult} \times \text{vol\_mult} \times \text{dd\_brake}\right\rfloor\right)
+\begin{aligned}
+\text{sentiment\_mult}
+&= \operatorname{clip}\!\left(1.0 + \text{score}\times\text{SENTIMENT\_SIZE\_SCALE},\right. \\
+&\qquad\left.1.0-\text{SENTIMENT\_SIZE\_CLIP},\; 1.0+\text{SENTIMENT\_SIZE\_CLIP}\right)
+\end{aligned}
+\]
+with \texttt{SENTIMENT\_SIZE\_SCALE}$=1.0$ and \texttt{SENTIMENT\_SIZE\_CLIP}$=0.10$, so sentiment-based sizing remains bounded to $\pm10\%$ around neutral. The effective order target then applies a minimum notional floor:
+\[
+\begin{aligned}
+\text{effective\_target}
+&= \max\!\left(100,\; \left\lfloor\text{base\_target}\times\text{path\_mult}\times\text{vol\_mult}\right.\right. \\
+&\qquad\left.\left.\times\text{dd\_brake}\times\text{sentiment\_mult}\right\rfloor\right)
+\end{aligned}
 \]
 so very small orders are suppressed.
 
@@ -340,7 +352,7 @@ Positions are exited via one of six mechanisms, listed in code-path priority:
     \item \textbf{Take Profit}: Fixed $+80\%$ take-profit, triggered when P\&L exceeds $+80\%$ (checked before trailing-stop logic in implementation).
     \item \textbf{Trailing Stop}: Activates once price appreciation exceeds $+20\%$ above entry. Trailing gap is $12\%$ from the high-water mark. The WFO-selected pair creates a mathematical breakeven guarantee: worst-case trailing-stop exit is entry $\times\, 1.20 \times 0.88 = $ entry $\times\, 1.056$, so once activated, trailing cannot convert a winner into a loss.
     \item \textbf{Path B Timeout}: Path B (RSI + volume without MACD confirmation) exits after 10 weeks if MACD histogram remains negative. The $\text{macd\_confirmed}$ flag (C5) suppresses this timeout once MACD turns positive post-entry.
-    \item \textbf{Bearish 2-of-3}: Exits when 2-of-3 bearish conditions hold: RSI $< 35$ (below \texttt{RSI\_SELL}), MACD histogram $< 0$, or price $<$ MA-50. C6 modifies this for Path C-low entries: RSI contributes no bearish vote during the first 4 weeks after entry (grace period), then reactivates. For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. This is the primary exit mechanism, accounting for 91.5--92.8\% of all exits. The sell signal set is deliberately asymmetric with the buy signal set: volume ratio is absent from sell signals (volume surges confirm entries but their absence does not signal deterioration), and MA-50 replaces MA-200 (its shorter lookback detects trend breaks faster than the regime filter).
+    \item \textbf{Bearish 2-of-3}: Exits when 2-of-3 bearish conditions hold: RSI $< 35$ (below \texttt{RSI\_SELL}), MACD histogram is negative \emph{and declining} (C12), or price $<$ MA-50. C6 modifies this for Path C-low entries: RSI contributes no bearish vote during the first 4 weeks after entry (grace period), then reactivates. For positions entered with a negative FinBERT sentiment score (C9), the exit threshold is reduced from 2-of-3 to 1-of-3, so any single bearish technical signal triggers exit. C11 sets \texttt{MIN\_HOLD\_WEEKS=1}, blocking only same-timestamp entry/exit artifacts while preserving responsiveness in genuine downtrends; this minimum-hold guard is not applied to C9-flagged entries. This remains the primary exit mechanism: bearish\_signals contributes 89.6\% (Dev) and 87.1\% (Val), rising to 90.0\% and 87.4\% when including bearish\_signals\_sentiment exits. The sell signal set is deliberately asymmetric with the buy signal set: volume ratio is absent from sell signals (volume surges confirm entries but their absence does not signal deterioration), and MA-50 replaces MA-200 (its shorter lookback detects trend breaks faster than the regime filter).
 \end{enumerate}
 
 \begin{figure}[H]
@@ -350,19 +362,20 @@ Positions are exited via one of six mechanisms, listed in code-path priority:
 \label{fig:exit-threshold}
 \end{figure}
 
-The exit composition shift between v4 and v5.3 illustrates the effect of dynamic sizing on holding-period behaviour. Table~\ref{tab:exit-distribution} shows the compression of take-profit exits from 5.4\% (v4 Dev) to 1.1\% (v5.3 Dev), as dynamic sizing increases per-position dollar exposure. The trailing stop, absent in v4, accounts for 3.4\% (Dev) and 4.7\% (Val) of exits in v5.3. The dominant bearish-signal exit increases from 86.3\% to 92.7\% (Dev) and from 85.4\% to 91.5\% (Val), confirming the strategy exits primarily on deteriorating signal quality.
+The exit composition shift between v4 and v5.4 illustrates the effect of dynamic sizing and faster technical responsiveness. Table~\ref{tab:exit-distribution} shows take-profit compression from 5.4\% (v4 Dev) to 1.3\% (v5.4 Dev), while trailing-stop exits remain a minority at 4.5\% (Dev) and 5.7\% (Val). The dominant bearish technical exit remains high at 89.6\% (Dev) and 87.1\% (Val), with sentiment-accelerated bearish exits adding a further 0.4\% (Dev) and 0.3\% (Val).
 
 \begin{table}[H]
 \centering
-\caption{Exit mechanism distribution comparing v4 and v5.3 on Dev and Val splits.}
+\caption{Exit mechanism distribution comparing v4 and v5.4 on Dev and Val splits.}
 \label{tab:exit-distribution}
 \begin{tabular}{lcccc}
 \hline
-Exit Mechanism & v4 Dev & v5.3 Dev & v4 Val & v5.3 Val \\
+Exit Mechanism & v4 Dev & v5.4 Dev & v4 Val & v5.4 Val \\
 \hline
-Trailing stop     & ---           & 63\;\;(3.4\%)  & ---           & 32\;\;(4.7\%)  \\
-Take profit       & 75\;\;(5.4\%) & 21\;\;(1.1\%)  & 35\;\;(6.9\%) & 10\;\;(1.5\%)  \\
-Bearish 2-of-3    & 1,194\;\;(86.3\%) & 1,740\;\;(92.7\%) & 433\;\;(85.4\%) & 622\;\;(91.5\%) \\
+Trailing stop                  & ---             & 72\;\;(4.5\%)     & ---             & 34\;\;(5.7\%)     \\
+Take profit                    & 75\;\;(5.4\%)  & 20\;\;(1.3\%)     & 35\;\;(6.9\%)  & 11\;\;(1.8\%)     \\
+Bearish signals (technical)    & 1,194\;\;(86.3\%) & 1,424\;\;(89.6\%) & 433\;\;(85.4\%) & 519\;\;(87.1\%) \\
+Bearish signals (sentiment)    & ---             & 7\;\;(0.4\%)      & ---             & 2\;\;(0.3\%)      \\
 \hline
 \end{tabular}
 \end{table}
@@ -401,26 +414,31 @@ Strategy development proceeded through six distinct versions, each addressing a 
 
 \textbf{v5.2:} Added OPT-2 through OPT-9 speed optimisations. Binary volatility threshold ($0.5\times$ at vol\_pct $> 0.70$). All analytics precomputed (additive cache).
 
-\textbf{v5.3 (Final):} Nine targeted corrections (C1--C9): dynamic position sizing (C1), continuous volatility multiplier (C2), MAX\_POSITIONS raised to 18 (C3), Path A multiplier reduced to 0.90$\times$ (C4), \texttt{macd\_confirmed} state flag (C5), C-low RSI grace period of 4 weeks (C6), HWM drawdown brake (C7), sentiment threshold recalibration from $-0.25$ to $-0.10$ for CPU-inference score compression (C8), and entry-sentiment exit signal reducing the bearish exit threshold from 2-of-3 to 1-of-3 for positions entered with negative FinBERT scores (C9). WFO-selected parameters applied.
+\textbf{v5.3:} Nine targeted corrections (C1--C9): dynamic position sizing (C1), continuous volatility multiplier (C2), MAX\_POSITIONS raised to 18 (C3), Path A multiplier reduced to 0.90$\times$ (C4), \texttt{macd\_confirmed} state flag (C5), C-low RSI grace period of 4 weeks (C6), HWM drawdown brake (C7), sentiment threshold recalibration from $-0.25$ to $-0.10$ for CPU-inference score compression (C8), and entry-sentiment exit signal reducing the bearish exit threshold from 2-of-3 to 1-of-3 for positions entered with negative FinBERT scores (C9).\
 
-Table~\ref{tab:version-progression} traces key metrics across every version on both splits. Return remains bounded in the 66--99\% (Dev) and 33--49\% (Val) range through v1--v4, then jumps to 247.65\% (Dev) and 63.05\% (Val) in v5.3---this step-change is attributable to C1 dynamic sizing resolving the cash-accumulation problem, not signal improvement. Win rate is strikingly stable across all versions and both splits (38.3\%--41.9\%), providing strong evidence that the 2-of-3 gate quality is an intrinsic property of the signal architecture rather than a by-product of sizing or exit calibration. The v5.3 volatility figures are higher in absolute terms (17.64\% Dev vs.\ 9--12\% for v1--v4), a direct consequence of proportional sizing correctly reflecting true strategy risk rather than the ever-declining effective exposure of fixed-dollar sizing. The risk-adjusted picture confirms this: v5.3's Val Sharpe of 1.84 is the highest across all versions. Computationally, these gains are achieved with lower runtime than baseline under the profiled CPU setup (Section~\ref{sec:base-enhanced-profiling}).
+\textbf{v5.4 (Final):} Three calibration updates were applied on top of v5.3. C10 bounds sentiment-based size adjustment to $\pm 10\%$ (\texttt{SENTIMENT\_SIZE\_SCALE=1.0}, \texttt{SENTIMENT\_SIZE\_CLIP=0.10}) to preserve directional conviction without over-weighting noisy short-text sentiment. C11 sets \texttt{MIN\_HOLD\_WEEKS=1} to eliminate same-week whipsaw artifacts without delaying exits into true bear phases. C12 is retained unchanged: the MACD histogram slope filter remains mechanically robust, and the observed disappearance of Path-B timeout exits reflects earlier bearish-signal exits rather than suppression.
+
+\subsubsection*{v5.3 to v5.4 Calibration Impact}
+Relative to v5.3, v5.4 improves Dev return from 247.65\% to 249.04\% and Val return from 63.05\% to 68.48\%. Val Sharpe improves from 1.84 to 1.97, while Dev Sharpe remains effectively unchanged (1.99 to 1.98). Max drawdown deepens modestly on both splits (Dev: $-22.10\%$ to $-23.90\%$; Val: $-12.49\%$ to $-13.97\%$), consistent with faster reactivity and slightly higher trade conviction. Win rate increases on both splits (Dev: 38.7\% to 40.2\%; Val: 41.9\% to 42.8\%).
+
+Table~\ref{tab:version-progression} traces key metrics across every version on both splits. Return remains bounded in the 66--99\% (Dev) and 33--49\% (Val) range through v1--v4, then steps up in v5.x as dynamic sizing resolves the cash-accumulation problem. Under final v5.4 calibration, returns are 249.04\% (Dev) and 68.48\% (Val). Win rate remains stable-to-improving across versions, supporting the view that the 2-of-3 gate quality is structural rather than an artifact of any single sizing rule. The v5.x volatility figures are higher in absolute terms than v1--v4, consistent with proportional sizing reflecting true portfolio risk rather than decaying effective exposure under fixed-dollar sizing. The risk-adjusted picture confirms this: v5.4's Val Sharpe (1.97) is the highest across all tested versions.
 
 
 \begin{table}[H]
 \centering
-\caption{Performance metrics across all strategy versions (Dev and Val splits). v5 refers to v5.3, the final WFO-calibrated implementation.}
+\caption{Performance metrics across all strategy versions (Dev and Val splits). v5 refers to v5.4, the final implementation.}
 \label{tab:version-progression}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccccc}
 \hline
 Metric & v1 Dev & v1 Val & v2 Dev & v2 Val & v3 Dev & v3 Val & v4 Dev & v4 Val & v5 Dev & v5 Val \\
 \hline
-Total Return    & 66.56\%  & 33.22\%  & 97.76\%  & 49.37\%  & 96.57\%  & 48.26\%  & 99.41\%  & 46.57\%  & 247.65\% & 63.05\%  \\
-Sharpe Ratio    & 1.54     & 2.04     & 1.55     & 2.10     & 1.59     & 2.18     & 1.62     & 2.13     & 1.99     & 1.84     \\
-Max Drawdown    & $-15.63\%$ & $-8.72\%$ & $-19.94\%$ & $-8.82\%$ & $-18.74\%$ & $-7.88\%$ & $-18.81\%$ & $-7.02\%$ & $-22.10\%$ & $-12.49\%$ \\
-Win Rate        & 39.1\%   & 41.0\%   & 38.3\%   & 40.5\%   & 38.3\%   & 40.5\%   & 38.4\%   & 41.2\%   & 38.7\%   & 41.9\%   \\
-Volatility      & 9.17\%   & 9.99\%   & 12.32\%  & 13.68\%  & 11.90\%  & 12.90\%  & 11.90\%  & 11.82\%  & 17.64\%  & 19.40\%  \\
-Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976      & 2,776    & 1,022    & 3,767    & 1,373    \\
+Total Return    & 66.56\%  & 33.22\%  & 97.76\%  & 49.37\%  & 96.57\%  & 48.26\%  & 99.41\%  & 46.57\%  & 249.04\% & 68.48\%  \\
+Sharpe Ratio    & 1.54     & 2.04     & 1.55     & 2.10     & 1.59     & 2.18     & 1.62     & 2.13     & 1.98     & 1.97     \\
+Max Drawdown    & $-15.63\%$ & $-8.72\%$ & $-19.94\%$ & $-8.82\%$ & $-18.74\%$ & $-7.88\%$ & $-18.81\%$ & $-7.02\%$ & $-23.90\%$ & $-13.97\%$ \\
+Win Rate        & 39.1\%   & 41.0\%   & 38.3\%   & 40.5\%   & 38.3\%   & 40.5\%   & 38.4\%   & 41.2\%   & 40.2\%   & 42.8\%   \\
+Volatility      & 9.17\%   & 9.99\%   & 12.32\%  & 13.68\%  & 11.90\%  & 12.90\%  & 11.90\%  & 11.82\%  & 17.73\%  & 19.24\%  \\
+Total Trades    & 1,704    & 617      & 2,680    & 976      & 2,680    & 976      & 2,776    & 1,022    & 3,195    & 1,209    \\
 \hline
 \end{tabular}
 }
@@ -440,7 +458,7 @@ Two WFO stages were conducted:
 
 \subsection{Walk-Forward OOS Window Diagnostics}
 
-The enhanced strategy (v5.3) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in WFO v2 produced negative Sharpe: 2008 ($-2.18$), 2011 ($-0.61$), 2015 ($-0.35$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
+The enhanced strategy (v5.4) was evaluated on the held-out Val split (2018--2024) after all hyperparameter tuning was completed on the Dev split. Three OOS windows in WFO v2 produced negative Sharpe: 2008 ($-2.18$), 2011 ($-0.61$), 2015 ($-0.35$). The 2008 GFC result is structurally unavoidable for any lookback-based indicator. The 2011 and 2015 cases reflect range-bound years where momentum signals fire but mean-revert within the holding period---failure modes consistent across all lookback-based momentum strategies.
 
 
 % -----------------------------------------------------------------------
@@ -453,18 +471,18 @@ The enhanced strategy (v5.3) was evaluated on the held-out Val split (2018--2024
 
 \begin{table}[H]
 \centering
-\caption{Final performance summary: baseline vs. enhanced v5.3.}
+\caption{Final performance summary: baseline vs. enhanced v5.4.}
 \label{tab:final-performance-outcomes}
 \begin{tabular}{lccc}
 \hline
-Metric & Baseline (Val) & Enhanced v5.3 (Dev) & Enhanced v5.3 (Val) \\
+Metric & Baseline (Val) & Enhanced v5.4 (Dev) & Enhanced v5.4 (Val) \\
 \hline
-Total Return & 12.45\% & 247.65\% & 63.05\% \\
-Sharpe Ratio & 0.41 & 1.99 & 1.84 \\
-Max Drawdown & $-35.42\%$ & $-22.10\%$ & $-12.49\%$ \\
-Win Rate & 27.75\% & 38.70\% & 41.91\% \\
-Volatility & 43.80\% & 17.64\% & 19.40\% \\
-Total Trades & 3,639 & 3,767 & 1,373 \\
+Total Return & 12.45\% & 249.04\% & 68.48\% \\
+Sharpe Ratio & 0.41 & 1.98 & 1.97 \\
+Max Drawdown & $-35.42\%$ & $-23.90\%$ & $-13.97\%$ \\
+Win Rate & 27.75\% & 40.20\% & 42.80\% \\
+Volatility & 43.80\% & 17.73\% & 19.24\% \\
+Total Trades & 3,639 & 3,195 & 1,209 \\
 \hline
 \end{tabular}
 \end{table}
@@ -474,20 +492,20 @@ Total Trades & 3,639 & 3,767 & 1,373 \\
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/v5.3_dev-portfolio.png}
-\caption{Enhanced v5.3 portfolio value trajectory on the Dev split (2000--2017). 
+\caption{Enhanced v5.4 portfolio value trajectory on the Dev split (2000--2017). 
 Shows cumulative growth with volatility scaling and drawdown management visible during 
 crisis periods, including the 2008 Global Financial Crisis.}
 \label{fig:v5.3-portfolio-dev}
 \end{figure}
 Figure~\ref{fig:v5.3-portfolio-dev} illustrates the enhanced strategy's compounding 
-trajectory on the Dev split, achieving a total return of 247.65\% from initial capital 
+trajectory on the Dev split, achieving a total return of 249.04\% from initial capital 
 of \$100,000. The portfolio demonstrates disciplined drawdown management with maximum 
-peak-to-trough decline limited to -22.10\%, substantially below the baseline's -35.42\%.
+peak-to-trough decline limited to -23.90\%, substantially below the baseline's -35.42\%.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/v5.3_val-portfolio.png}
-\caption{Enhanced v5.3 portfolio value trajectory on the Val split (2018--2024). 
+\caption{Enhanced v5.4 portfolio value trajectory on the Val split (2018--2024). 
 Performance across unprecedented regimes confirms strategy robustness to crisis conditions.}
 \label{fig:v5.3-portfolio-val}
 \end{figure}
@@ -495,22 +513,22 @@ Figure~\ref{fig:v5.3-portfolio-val} extends this analysis to the held-out Val sp
 (2018--2024), providing evidence of out-of-sample robustness across three unprecedented 
 market regimes: the COVID-19 crash (-34\% S\&P in 33 days), the fastest Fed rate-hike 
 cycle, and SVB banking crisis. Despite these challenges, the strategy achieves a 
-validation Sharpe of 1.84 compared to 0.41 baseline, with maximum drawdown of only 
--12.49\% (vs.\ -35.42\% baseline).
+validation Sharpe of 1.97 compared to 0.41 baseline, with maximum drawdown of only 
+-13.97\% (vs.\ -35.42\% baseline).
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{./figures/v5.3_baselineVSenhanced.png}
-\caption{Side-by-side performance comparison: baseline (red) vs.\ enhanced v5.3 (blue) 
+\caption{Side-by-side performance comparison: baseline (red) vs.\ enhanced v5.4 (blue) 
 on Val split. Enhanced strategy achieves superior risk-adjusted returns and drawdown control.}
 \label{fig:baseline-vs-enhanced}
 \end{figure}
 
 On the validation split, the enhanced strategy improves all five metrics simultaneously: 
-total return increases by $5.1\times$ (63.05\% vs.\ 12.45\%), Sharpe ratio rises from 
-0.41 to 1.84 (exceeding the $1.0$ ``good'' threshold), maximum drawdown improves by 
-22.93 percentage points, win rate gains 14.16 points (41.91\% vs.\ 27.75\%), and 
-portfolio volatility drops from 43.80\% to 19.40\%. Figure~\ref{fig:baseline-vs-enhanced} 
+total return increases by $5.5\times$ (68.48\% vs.\ 12.45\%), Sharpe ratio rises from 
+0.41 to 1.97 (exceeding the $1.0$ ``good'' threshold), maximum drawdown improves by 
+21.45 percentage points, win rate gains 15.05 points (42.80\% vs.\ 27.75\%), and 
+portfolio volatility drops from 43.80\% to 19.24\%. Figure~\ref{fig:baseline-vs-enhanced} 
 visualizes this improvement across all metrics simultaneously.
 
 % -----------------------------------------------------------------------
@@ -537,7 +555,7 @@ On Walk-Forward Optimisation, the anchored IS/OOS design follows \citet{Pardo200
 
 \subsection{Conclusion}
 
-This project demonstrates that a systematic, iteratively developed multi-signal trading strategy can substantially outperform a simple moving-average baseline on both in-sample and out-of-sample data. The five-gate buy pipeline with path-dependent entry sizing, FinBERT-based sentiment gating, continuous volatility scaling, and Walk-Forward Optimised parameters achieved a validation Sharpe of 1.84 (vs.\ 0.41 baseline), a maximum drawdown of $-12.49\%$ (vs.\ $-35.42\%$), and a total return of $63.05\%$ over seven years (vs.\ $12.45\%$).
+This project demonstrates that a systematic, iteratively developed multi-signal trading strategy can substantially outperform a simple moving-average baseline on both in-sample and out-of-sample data. The final v5.4 strategy, achieved a validation Sharpe of 1.97 (vs.\ 0.41 baseline), a maximum drawdown of $-13.97\%$ (vs.\ $-35.42\%$), and a total return of $68.48\%$ over seven years (vs.\ $12.45\%$).
 
 Three structural innovations drove the improvement. First, replacing collinear technical gates (BB mid-line) with a structurally orthogonal signal (volume ratio) improved 2-of-3 gate quality. Second, path-dependent sizing encodes signal conviction into position size rather than treating all entry conditions uniformly. Third, continuous proactive volatility scaling reduces position sizes as volatility rises, before crash events fully develop.
 
@@ -553,7 +571,7 @@ The WFO process evaluated a restricted parameter grid. The BS7 crash-window sens
 
 \subsection{Challenges Encountered}
 
-The most significant structural challenge was the \textbf{cash accumulation and deployment problem}. The static \$5,000 position target caused idle cash to grow monotonically. The v5.3 dynamic base target resolved this but introduced a secondary risk: full deployment without a cash buffer during stress periods. Three simultaneous mechanisms address this: continuous vol\_mult (C2), the correlation filter at 0.70 (Gate~4b), and the rolling HWM drawdown brake (C7).
+The most significant structural challenge was the \textbf{cash accumulation and deployment problem}. The static \$5,000 position target caused idle cash to grow monotonically. The v5.3 dynamic base target resolved this but introduced a secondary risk: full deployment without a cash buffer during stress periods. Three simultaneous mechanisms address this: continuous vol\_mult (C2), the correlation filter at 0.70 (Gate~4b), and the rolling HWM drawdown brake (C7). In v5.4, bounded sentiment sizing (C10) and one-week minimum hold (C11) were added to reduce artifact-driven churn while preserving bearish responsiveness.
 
 A secondary challenge was \textbf{indicator collinearity identification}: the v1 gate used RSI, MACD, and BB mid-line---all price-derived momentum signals with high correlation. EDA revealed BB mid-line fire rates were strongly correlated with RSI, leading to replacement with volume ratio in v2.
 
@@ -583,11 +601,11 @@ Several directions merit investigation: extending the strategy to include short 
 \hline
 Member & Contribution \\
 \hline
-\textbf{Guo Zi Qiang Robin} & Principal architect of full strategy (v1--v5.3). Designed/implemented: five-gate buy pipeline; path-dependent entry sizing (v3); path-aware exit logic with tighter $-10\%$ stop for Path C-high (v4); all v5.3 dynamic capital allocation innovations---dynamic base target from portfolio value (C1), continuous volatility regime multiplier (C2), regime-adjusted slot count to 18 positions (C3), PATH\_A\_MULT refinement to 0.90 (C4), Path B MACD confirmation tracking (C5), C-low RSI grace period (C6), rolling 52-week HWM drawdown brake (C7). Led resolution of cash accumulation and regime-blind slot count issues. Executed WFO v2 calibrating \texttt{SIZING\_SCALE} and \texttt{BRAKE\_HWM\_WEEKS}. Contributed to v5.2 speed optimisations (OPT-1/2, OPT-5--9). \\[4pt]
+\textbf{Guo Zi Qiang Robin} & Principal architect of full strategy (v1--v5.4). Designed/implemented: five-gate buy pipeline; path-dependent entry sizing (v3); path-aware exit logic with tighter $-10\%$ stop for Path C-high (v4); all v5.3 dynamic capital allocation innovations---dynamic base target from portfolio value (C1), continuous volatility regime multiplier (C2), regime-adjusted slot count to 18 positions (C3), PATH\_A\_MULT refinement to 0.90 (C4), Path B MACD confirmation tracking (C5), C-low RSI grace period (C6), rolling 52-week HWM drawdown brake (C7). \\[4pt]
 \textbf{Cai Wenjing} & Designed/executed WFO v1 framework for v5.2 calibration: precompute-once/simulate-many architecture, composite DD-penalised scoring, BS7 crash-window sensitivity testing. Calibrated \texttt{TRAIL\_ACTIVATE\_PCT=0.20}, \texttt{TRAIL\_PCT=0.12}, \texttt{MAX\_HOLD\_WEEKS\_PATH\_B=10} across 15 anchored IS/OOS windows. Researched Bayesian optimisation; validated WFO robustness for sequential regime diversity requirements. \\[4pt]
 \textbf{Ng Kay Cheng} & Jointly implemented v1 baseline entry (2-of-3 signals: RSI 40--65, MACD histogram positive, price above BB mid-line) and refined v5 trailing stop mechanism (HWM update logic, breakeven validation). \\[4pt]
 \textbf{Hing Zheng Wen} & Jointly implemented v2 signal selection refinement and v5 trailing stop mechanism. Assisted in WFO design and reporting. \\[4pt]
-\textbf{Fang Chong} & Developed data cleaning and analytics infrastructure, including parallelised per-ticker indicator pipeline. \\[4pt]
+\textbf{Fang Chong} & Developed data cleaning and analytics infrastructure, including parallelised per-ticker indicator pipeline. Led v5.4 calibration updates: bounded sentiment sizing (C10), one-week minimum hold (C11), and retention/validation of MACD slope filter behavior (C12). Executed WFO v2 calibrating \texttt{SIZING\_SCALE} and \texttt{BRAKE\_HWM\_WEEKS}. Contributed to v5.2 speed optimisations (OPT-1/2, OPT-5--9). \\[4pt]
 \textbf{Tan Zi Xu} & Integrated FinBERT sentiment analysis, three-tier keyword paragraph selection, and additive sentiment cache architecture (OPT-1). Led CPU deployment recalibration: \texttt{SENTIMENT\_BLOCK} adjustment (C8), entry-sentiment exit signal (C9). Contributed to v5.2 speed optimisations (OPT-1/2, OPT-9). \\
 \hline
 \end{tabular}

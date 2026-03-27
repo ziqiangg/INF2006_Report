@@ -144,7 +144,7 @@ Tickers with fewer than 252 trading days of price history are dropped to ensure 
 
 \subsection{Scalability Challenges}
 
-The primary bottleneck is FinBERT inference: at 9,675 Dev transcripts, unoptimised sequential processing would require approximately 3--4 hours on a CPU. A secondary bottleneck is indicator computation across 337 tickers and 1.3M rows.
+The primary bottleneck is FinBERT inference: at 9,675 Dev transcripts, unoptimised sequential processing would require approximately 1 hour on a CPU. A secondary bottleneck is indicator computation across 337 tickers and 1.3M rows.
 
 \subsection{Optimisation Strategies}
 

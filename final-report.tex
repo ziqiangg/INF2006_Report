@@ -347,7 +347,7 @@ where $\text{vol\_pct}$ is the 52-week ATR percentile. Compression begins at $\t
 Positions are exited via one of six mechanisms, listed in code-path priority:
 
 \begin{enumerate}[(1)]
-    \item \textbf{HWM Drawdown Brake}: If the rolling 52-week portfolio drawdown from its high-water mark (HWM) exceeds tiered thresholds (0\% $\to$ 1.00$\times$; $-5\%$ $\to$ 0.75$\times$; $-10\%$ $\to$ 0.50$\times$; $-20\%$ $\to$ 0.25$\times$ floor), the buy-side multiplier is compressed. This is not a sell signal but reduces new position sizes during sustained drawdown.
+    \item \textbf{HWM Drawdown Brake}: If the rolling 26-week portfolio drawdown from its high-water mark (HWM) exceeds tiered thresholds (0\% $\to$ 1.00$\times$; $-5\%$ $\to$ 0.75$\times$; $-10\%$ $\to$ 0.50$\times$; $-20\%$ $\to$ 0.25$\times$ floor), the buy-side multiplier is compressed. This is not a sell signal but reduces new position sizes during sustained drawdown.
     \item \textbf{Path-Differentiated Stop-Loss}: Global stop triggers when P\&L falls below $-15\%$ (paths D/A/B); C-high stop below $-10\%$; C-low stop below $-12\%$. C-high positions (the least-confirmed signal combination) receive the tightest stop.
     \item \textbf{Take Profit}: Fixed $+80\%$ take-profit, triggered when P\&L exceeds $+80\%$ (checked before trailing-stop logic in implementation).
     \item \textbf{Trailing Stop}: Activates once price appreciation exceeds $+20\%$ above entry. Trailing gap is $12\%$ from the high-water mark. The WFO-selected pair creates a mathematical breakeven guarantee: worst-case trailing-stop exit is entry $\times\, 1.20 \times 0.88 = $ entry $\times\, 1.056$, so once activated, trailing cannot convert a winner into a loss.
